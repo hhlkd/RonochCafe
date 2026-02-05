@@ -54,7 +54,7 @@ class ProductCard extends StatelessWidget {
                     top: cardHeight * 0.02,
                     right: cardWidth * 0.02,
                     child: Transform.rotate(
-                      angle: 0.1, // Slight tilt for visual interest
+                      angle: 0.1,
                       child: Container(
                         padding: EdgeInsets.symmetric(
                           horizontal: cardWidth * 0.04,

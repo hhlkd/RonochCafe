@@ -1,4 +1,3 @@
-// services/user_session.dart
 import 'package:shared_preferences/shared_preferences.dart';
 
 class UserSession {
@@ -12,7 +11,6 @@ class UserSession {
   static const String _pointKey = 'point';
   static const String _createdAtKey = 'createdAt';
 
-  // Save user data
   static Future<void> saveUser(
     String userId,
     String username,
@@ -26,7 +24,6 @@ class UserSession {
     print('💾 Saved basic user data: $username ($email)');
   }
 
-  // Extended save method for profile updates
   static Future<void> saveUserProfile({
     required String userId,
     required String username,
@@ -53,7 +50,6 @@ class UserSession {
     print('💾 Saved full user profile: $username');
   }
 
-  // Get user data - returns Map
   static Future<Map<String, dynamic>> getUser() async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -69,7 +65,6 @@ class UserSession {
     };
   }
 
-  // Individual getter methods for easier access
   static Future<String?> getUserId() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_userIdKey);

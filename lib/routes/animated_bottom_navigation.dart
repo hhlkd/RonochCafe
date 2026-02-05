@@ -20,15 +20,13 @@ class _AnimatedBottomNavigationState extends State<AnimatedBottomNavigation> {
   Widget build(BuildContext context) {
     Size size = MediaQuery.of(context).size;
     double width = size.width;
-    double itemWidth = width / 4; // Matching 4 icons from UI design
+    double itemWidth = width / 4;
 
     return Container(
       height: 75,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(25),
-        ), // Rounded bar top
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.08),
@@ -39,7 +37,6 @@ class _AnimatedBottomNavigationState extends State<AnimatedBottomNavigation> {
       ),
       child: Stack(
         children: [
-          // THE SLIDING CIRCLE BACKCOLOR
           AnimatedPositioned(
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeOutCubic,
@@ -49,15 +46,11 @@ class _AnimatedBottomNavigationState extends State<AnimatedBottomNavigation> {
               width: 60,
               height: 60,
               decoration: BoxDecoration(
-                color: const Color(
-                  0xFF6F4E37,
-                ).withOpacity(0.15), // Light coffee circle
+                color: const Color(0xFF6F4E37).withOpacity(0.15),
                 shape: BoxShape.circle,
               ),
             ),
           ),
-
-          // NAVIGATION ITEMS
           Row(
             children: [
               _buildItem(Icons.home_rounded, "Home", 0),

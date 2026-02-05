@@ -1,4 +1,3 @@
-// lib/services/image_service.dart
 import 'package:ronoch_coffee/models/image_model.dart';
 import 'package:ronoch_coffee/services/mockapi_service.dart';
 
@@ -23,7 +22,6 @@ class ImageService {
     }
   }
 
-  // Get image by ID
   static Future<AppImage?> getImageById(String id) async {
     try {
       final allImages = await MockApiService.getImages();
@@ -34,7 +32,6 @@ class ImageService {
     }
   }
 
-  // Get multiple images by their IDs
   static Future<List<AppImage>> getImagesByIds(List<String> ids) async {
     try {
       final allImages = await MockApiService.getImages();

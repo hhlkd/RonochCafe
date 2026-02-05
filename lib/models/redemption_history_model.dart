@@ -1,4 +1,3 @@
-// lib/models/redemption_history_model.dart
 import 'package:ronoch_coffee/models/redemption_record_model.dart';
 
 class RedemptionHistory {

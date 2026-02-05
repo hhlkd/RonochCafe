@@ -6,7 +6,7 @@ class RedemptionRecord {
   final String rewardImage;
   final int pointsUsed;
   final String redemptionCode;
-  final String status; // pending, used, expired
+  final String status;
   final DateTime redeemedAt;
   final DateTime validUntil;
   final String pickupLocation;
@@ -127,7 +127,6 @@ class RedemptionRecord {
     );
   }
 
-  // Helper methods
   bool get isExpired => validUntil.isBefore(DateTime.now());
   bool get isUsed => status == 'used';
   bool get isValid => !isExpired && !isUsed;

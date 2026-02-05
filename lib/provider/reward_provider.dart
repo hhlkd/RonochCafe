@@ -43,7 +43,6 @@ class RewardProvider with ChangeNotifier {
       final success = await MockApiService.redeemRewardItem(userId, rewardId);
 
       if (success) {
-        // Refresh rewards list
         await fetchRewards();
         print('✅ Reward redeemed successfully');
         _isRedeeming = false;
@@ -65,7 +64,6 @@ class RewardProvider with ChangeNotifier {
     }
   }
 
-  // Get reward by ID
   RewardItem? getRewardById(String rewardId) {
     try {
       return _rewards.firstWhere((reward) => reward.id == rewardId);
@@ -74,7 +72,6 @@ class RewardProvider with ChangeNotifier {
     }
   }
 
-  // Clear error
   void clearError() {
     _error = null;
     notifyListeners();

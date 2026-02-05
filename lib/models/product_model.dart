@@ -12,7 +12,7 @@ class Product {
   final String? section;
   final bool? popular;
   final bool? promotion;
-  final double? discount; // Add discount field
+  final double? discount;
   final Map<String, dynamic>? customizations;
   final double? finalPrice;
 
@@ -30,7 +30,7 @@ class Product {
     this.section,
     this.popular,
     this.promotion,
-    this.discount, // Add to constructor
+    this.discount,
     this.customizations,
     this.finalPrice,
   });

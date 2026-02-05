@@ -21,7 +21,6 @@ class _HomeSliderState extends State<HomeSlider> {
   @override
   void initState() {
     super.initState();
-    // CRITICAL: Set viewportFraction to exactly 1.0
     _pageController = PageController(initialPage: 0, viewportFraction: 1.0);
 
     if (widget.images.isNotEmpty) {
@@ -57,7 +56,6 @@ class _HomeSliderState extends State<HomeSlider> {
       children: [
         SizedBox(
           height: widget.height,
-          // Use MediaQuery to ensure the width is the physical screen width
           width: MediaQuery.of(context).size.width,
           child: PageView.builder(
             controller: _pageController,
@@ -66,7 +64,6 @@ class _HomeSliderState extends State<HomeSlider> {
             itemBuilder: (context, index) {
               return CachedNetworkImage(
                 imageUrl: widget.images[index].imageUrl,
-                // BoxFit.cover makes the image fill the entire container
                 fit: BoxFit.cover,
                 width: MediaQuery.of(context).size.width,
                 placeholder:
@@ -76,8 +73,6 @@ class _HomeSliderState extends State<HomeSlider> {
             },
           ),
         ),
-
-        // Custom Indicators (Matching image_f46ad8.png)
         Positioned(
           bottom: 15,
           left: 0,
@@ -87,10 +82,7 @@ class _HomeSliderState extends State<HomeSlider> {
             children: List.generate(
               widget.images.length,
               (index) => Container(
-                width:
-                    _currentPage == index
-                        ? 18
-                        : 8, // Active indicator is a pill shape
+                width: _currentPage == index ? 18 : 8,
                 height: 8,
                 margin: const EdgeInsets.symmetric(horizontal: 4),
                 decoration: BoxDecoration(

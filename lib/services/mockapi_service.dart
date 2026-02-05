@@ -24,9 +24,7 @@ class MockApiService {
       throw Exception('Failed to load users');
     }
   }
-  // Add this method to your existing MockApiService class:
 
-  // Create order with points based on quantity (5 points per drink)
   static Future<Order> createOrderWithPoints({
     required String userId,
     required List<CartItem> cartItems,
@@ -35,14 +33,11 @@ class MockApiService {
     required String deliveryAddress,
   }) async {
     try {
-      // Calculate points earned: 5 points per drink × quantity
       final totalQuantity = cartItems.fold(
         0,
         (sum, item) => sum + item.quantity,
       );
       final pointsEarned = totalQuantity * 5;
-
-      // Convert cart items to order items
       final orderItems =
           cartItems.map((cartItem) {
             return OrderItem(
@@ -55,8 +50,6 @@ class MockApiService {
               iceLevel: cartItem.iceLevel,
             );
           }).toList();
-
-      // Create order
       final order = Order(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         userId: userId,
@@ -68,10 +61,8 @@ class MockApiService {
         createdAt: DateTime.now(),
       );
 
-      // Save order to API
       final createdOrder = await createOrder(order);
 
-      // Update user's points
       await addUserPoint(userId, pointsEarned);
 
       return createdOrder;
@@ -81,13 +72,11 @@ class MockApiService {
     }
   }
 
-  // Get total points earned from cart
   static int calculatePointsFromCart(List<CartItem> cartItems) {
     final totalQuantity = cartItems.fold(0, (sum, item) => sum + item.quantity);
     return totalQuantity * 5; // 5 points per drink
   }
 
-  // Get points for specific cart item
   static int calculatePointsForItem(CartItem item) {
     return item.quantity * 5; // 5 points per drink
   }
@@ -157,19 +146,14 @@ class MockApiService {
     }
   }
 
-  // This should be in your MockApiService
   static Future<void> updateUserPoint(String userId, int point) async {
     try {
       print('🔄 Updating user points for $userId to $point');
-
-      // First get the current user
       final user = await getUserById(userId);
       if (user == null) {
         print('❌ User not found for point update');
         return;
       }
-
-      // Create updated user with new points
       final updatedUser = User(
         id: user.id,
         username: user.username,
@@ -181,8 +165,6 @@ class MockApiService {
         point: point,
         createdAt: user.createdAt,
       );
-
-      // Update user in API
       final response = await http.put(
         Uri.parse('$baseUrl/users/$userId'),
         headers: {'Content-Type': 'application/json'},
@@ -287,7 +269,6 @@ class MockApiService {
     }
   }
 
-  // In your MockApiService class
   static Future<List<Order>> getUserOrders(String userId) async {
     try {
       print('🔍 Fetching orders for user ID: $userId');
@@ -307,8 +288,6 @@ class MockApiService {
             print('❌ Error parsing order: $e');
           }
         }
-
-        // Filter by userId
         final userOrders =
             allOrders.where((order) => order.userId == userId).toList();
         print('✅ Found ${userOrders.length} orders for user $userId');
@@ -601,8 +580,6 @@ class MockApiService {
     }
   }
 
-  // Add to your existing MockApiService class
-
   // ============ REDEMPTION RECORDS ============
   static Future<List<RedemptionRecord>> getRedemptionRecords() async {
     try {
@@ -685,7 +662,6 @@ class MockApiService {
     }
   }
 
-  // Get redemption records for a specific user
   static Future<List<RedemptionRecord>> getUserRedemptionRecords(
     String userId,
   ) async {
@@ -698,7 +674,6 @@ class MockApiService {
     }
   }
 
-  // Mark redemption as collected
   static Future<RedemptionRecord> markRedemptionAsCollected(
     String recordId,
     String collectedBy,
@@ -725,7 +700,6 @@ class MockApiService {
     }
   }
 
-  // Get redemption statistics for a user
   static Future<Map<String, dynamic>> getUserRedemptionStats(
     String userId,
   ) async {
@@ -874,7 +848,6 @@ class MockApiService {
     }
   }
 
-  // Simple redemption without redemption record
   static Future<bool> simpleRedeemReward(
     String userId,
     String rewardItemId,
@@ -966,7 +939,6 @@ class MockApiService {
     return users.any((user) => user.phone == phone);
   }
 
-  // Create order from cart and award points
   static Future<Order> createOrderFromCart({
     required String userId,
     required Cart cart,
@@ -1013,7 +985,6 @@ class MockApiService {
     return createdOrder;
   }
 
-  // Create order with custom items (for direct purchase without cart)
   static Future<Order> createDirectOrder({
     required String userId,
     required List<OrderItem> items,
@@ -1043,7 +1014,6 @@ class MockApiService {
     return createdOrder;
   }
 
-  // Get order statistics for a user
   static Future<Map<String, dynamic>> getUserOrderStats(String userId) async {
     try {
       final orders = await getUserOrders(userId);
@@ -1073,9 +1043,7 @@ class MockApiService {
       };
     }
   }
-  // Add these methods to your existing MockApiService class:
 
-  // Save user address
   static Future<Address> saveUserAddress(Address address) async {
     final response = await http.post(
       Uri.parse('$baseUrl/addresses'),
@@ -1090,7 +1058,6 @@ class MockApiService {
     }
   }
 
-  // Get payment method images
   static Future<List<AppImage>> getPaymentMethods() async {
     try {
       final response = await http
@@ -1108,7 +1075,6 @@ class MockApiService {
     }
   }
 
-  // For home screen - get all necessary data
   static Future<Map<String, dynamic>> getHomeScreenData(String userId) async {
     try {
       final announcements = await getActiveAnnouncements();
@@ -1194,7 +1160,6 @@ class MockApiService {
     }
   }
 
-  // Check if user has pending orders
   static Future<bool> hasPendingOrders(String userId) async {
     try {
       final orders = await getUserOrders(userId);
@@ -1207,7 +1172,6 @@ class MockApiService {
     }
   }
 
-  // Get recent orders (last 5)
   static Future<List<Order>> getRecentOrders(
     String userId, {
     int limit = 5,

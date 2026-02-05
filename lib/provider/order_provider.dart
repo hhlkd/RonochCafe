@@ -5,7 +5,6 @@ import 'package:ronoch_coffee/services/mockapi_service.dart';
 import 'package:ronoch_coffee/services/user_session.dart';
 
 class OrderProvider with ChangeNotifier {
-  // State variables
   List<Order> _orders = [];
   bool _isLoading = false;
   bool _isCreatingOrder = false;
@@ -13,7 +12,6 @@ class OrderProvider with ChangeNotifier {
   String? _userId;
   String? _userName;
 
-  // Getters
   List<Order> get orders => _orders;
   bool get isLoading => _isLoading;
   bool get isCreatingOrder => _isCreatingOrder;
@@ -30,12 +28,9 @@ class OrderProvider with ChangeNotifier {
   double get averageOrderValue =>
       totalOrders > 0 ? totalSpent / totalOrders : 0;
 
-  /// Initialize the provider with current user from session
   Future<void> initialize() async {
     try {
       print('🔄 Initializing OrderProvider...');
-
-      // Get user from session
       final user = await UserSession.getUser();
       _userId = user['userId'];
       _userName = user['userName'];
@@ -46,8 +41,6 @@ class OrderProvider with ChangeNotifier {
       }
 
       print('✅ OrderProvider initialized for user: $_userName (ID: $_userId)');
-
-      // Load orders for this user
       await fetchOrders();
     } catch (e) {
       print('❌ Error initializing OrderProvider: $e');
@@ -56,7 +49,6 @@ class OrderProvider with ChangeNotifier {
     }
   }
 
-  /// Set user ID manually (for registration/login flows)
   void setUserId(String userId, {String? userName}) {
     print(
       '🔧 Setting user ID: $userId ${userName != null ? '($userName)' : ''}',
@@ -68,12 +60,9 @@ class OrderProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  /// Fetch orders for the current user from MockAPI
   Future<void> fetchOrders({bool forceRefresh = false}) async {
-    // Skip if already loading
     if (_isLoading && !forceRefresh) return;
 
-    // Validate user is logged in
     if (_userId == null) {
       print('⚠️ Cannot fetch orders: No user ID');
       _error = 'Please login to view orders';
@@ -88,11 +77,9 @@ class OrderProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // Fetch orders from MockAPI
       final apiOrders = await MockApiService.getUserOrders(_userId!);
       print('📦 Received ${apiOrders.length} orders from API');
 
-      // Log order details for debugging
       for (var order in apiOrders) {
         print(
           '   └─ Order #${order.id}: ${order.items.length} items, \$${order.total}, ${order.status}',
@@ -104,17 +91,14 @@ class OrderProvider with ChangeNotifier {
         }
       }
 
-      // Process and deduplicate orders
       _orders = _processOrders(apiOrders);
       print('✅ Displaying ${_orders.length} unique orders for $_userName');
 
-      // Sort by creation date (newest first)
       _orders.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     } catch (e) {
       print('❌ ERROR fetching orders: $e');
       _error = 'Failed to load orders: ${e.toString()}';
 
-      // Fallback: Try to get all orders and filter manually
       try {
         print('🔄 Attempting fallback order fetch...');
         final allOrders = await MockApiService.getOrders();
@@ -189,15 +173,12 @@ class OrderProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // Get user details from MockAPI
       final user = await MockApiService.getUserById(_userId!);
       if (user == null) {
         throw Exception('User not found in database');
       }
 
       print('👤 Order for: ${user.username} (${user.email})');
-
-      // Calculate points (2 points per drink)
       final totalQuantity = cart.items.fold(
         0,
         (sum, item) => sum + item.quantity,
@@ -207,8 +188,6 @@ class OrderProvider with ChangeNotifier {
       print(
         '🎯 Points to earn: $pointsEarned (${totalQuantity} drinks × 5 points)',
       );
-
-      // Convert cart items to order items
       final orderItems =
           cart.items.map((cartItem) {
             return OrderItem(
@@ -229,10 +208,8 @@ class OrderProvider with ChangeNotifier {
           }).toList();
 
       print('📝 Converted ${cart.items.length} cart items to order items');
-
-      // Create order object
       final order = Order(
-        id: '', // Let MockAPI generate ID
+        id: '',
         userId: _userId!,
         items: orderItems,
         total: cart.total,
@@ -247,24 +224,18 @@ class OrderProvider with ChangeNotifier {
 
       print('💾 Saving order to MockAPI...');
 
-      // Save order to MockAPI
       final createdOrder = await MockApiService.createOrder(order);
 
       print('✅ Order saved with ID: ${createdOrder.id}');
       print(
         '   📊 Status: ${createdOrder.status}, Points: ${createdOrder.pointsEarned}',
       );
-
-      // Update user points in MockAPI
       print('🔼 Updating user points...');
       await MockApiService.addUserPoint(_userId!, pointsEarned);
       print('✅ User points updated: +$pointsEarned points');
 
-      // Refresh orders list to include the new order
       await Future.delayed(const Duration(milliseconds: 800));
       await fetchOrders(forceRefresh: true);
-
-      // Clear any existing error
       _error = null;
 
       print('🎉 Order creation complete!');
@@ -280,7 +251,6 @@ class OrderProvider with ChangeNotifier {
     }
   }
 
-  /// Create a direct order (without cart)
   Future<Order> createOrder({
     required List<OrderItem> items,
     required double total,
@@ -303,17 +273,13 @@ class OrderProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // Get user details
       final user = await MockApiService.getUserById(_userId!);
       if (user == null) {
         throw Exception('User not found');
       }
-
-      // Calculate points
       final totalQuantity = items.fold(0, (sum, item) => sum + item.quantity);
       final pointsEarned = totalQuantity * 2;
 
-      // Create order
       final order = Order(
         id: '',
         userId: _userId!,
@@ -328,13 +294,9 @@ class OrderProvider with ChangeNotifier {
         avatar: user.profileImage,
       );
 
-      // Save to MockAPI
       final createdOrder = await MockApiService.createOrder(order);
 
-      // Update user points
       await MockApiService.addUserPoint(_userId!, pointsEarned);
-
-      // Refresh orders
       await Future.delayed(const Duration(milliseconds: 500));
       await fetchOrders(forceRefresh: true);
 
@@ -349,7 +311,6 @@ class OrderProvider with ChangeNotifier {
     }
   }
 
-  /// Update order status
   Future<void> updateOrderStatus(String orderId, String status) async {
     try {
       print('📝 Updating order $orderId status to: $status');
@@ -358,8 +319,6 @@ class OrderProvider with ChangeNotifier {
         orderId,
         status,
       );
-
-      // Update local state
       final index = _orders.indexWhere((order) => order.id == orderId);
       if (index != -1) {
         _orders[index] = updatedOrder;
@@ -372,7 +331,6 @@ class OrderProvider with ChangeNotifier {
     }
   }
 
-  /// Get order by ID
   Order? getOrderById(String orderId) {
     try {
       return _orders.firstWhere((order) => order.id == orderId);
@@ -381,20 +339,17 @@ class OrderProvider with ChangeNotifier {
     }
   }
 
-  /// Get orders by status
   List<Order> getOrdersByStatus(String status) {
     return _orders
         .where((order) => order.status.toLowerCase() == status.toLowerCase())
         .toList();
   }
 
-  /// Get recent orders (limit number)
   List<Order> getRecentOrders({int limit = 5}) {
     _orders.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return _orders.take(limit).toList();
   }
 
-  /// Get order statistics
   Future<Map<String, dynamic>> getOrderStats() async {
     if (_userId == null) {
       return {
@@ -410,7 +365,6 @@ class OrderProvider with ChangeNotifier {
     try {
       return await MockApiService.getUserOrderStats(_userId!);
     } catch (e) {
-      // Fallback to local calculation
       return {
         'totalOrders': totalOrders,
         'completedOrders': completedOrders,
@@ -425,19 +379,16 @@ class OrderProvider with ChangeNotifier {
     }
   }
 
-  /// Check if user has pending orders
   Future<bool> hasPendingOrders() async {
     if (_userId == null) return false;
 
     try {
       return await MockApiService.hasPendingOrders(_userId!);
     } catch (e) {
-      // Fallback to local check
       return pendingOrders > 0;
     }
   }
 
-  /// Clear all orders (for logout)
   void clearOrders() {
     _orders.clear();
     _userId = null;
@@ -446,13 +397,11 @@ class OrderProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  /// Clear error state
   void clearError() {
     _error = null;
     notifyListeners();
   }
 
-  /// Cancel order creation (if needed)
   void cancelOrderCreation() {
     if (_isCreatingOrder) {
       _isCreatingOrder = false;
@@ -461,7 +410,6 @@ class OrderProvider with ChangeNotifier {
     }
   }
 
-  /// Refresh user session
   Future<void> _refreshUserSession() async {
     try {
       final user = await UserSession.getUser();
@@ -476,12 +424,10 @@ class OrderProvider with ChangeNotifier {
     }
   }
 
-  /// Get total points earned from all orders
   int get totalPointsEarned {
     return _orders.fold(0, (sum, order) => sum + order.pointsEarned);
   }
 
-  /// Get order count by month
   Map<String, int> getOrdersByMonth() {
     final Map<String, int> monthlyOrders = {};
 
@@ -494,7 +440,6 @@ class OrderProvider with ChangeNotifier {
     return monthlyOrders;
   }
 
-  /// Get favorite products (most ordered)
   Map<String, int> getFavoriteProducts() {
     final Map<String, int> productCounts = {};
 
@@ -508,7 +453,6 @@ class OrderProvider with ChangeNotifier {
     return productCounts;
   }
 
-  /// Debug function to print order details
   void debugPrintOrders() {
     print('=== DEBUG: OrderProvider State ===');
     print('User ID: $_userId');

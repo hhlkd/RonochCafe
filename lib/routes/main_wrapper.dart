@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../screens/home_screen.dart'; // Adjust path
+import '../screens/home_screen.dart';
 import '../routes/animated_bottom_navigation.dart';
 
 class MainWrapper extends StatefulWidget {

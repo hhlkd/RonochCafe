@@ -1,13 +1,9 @@
-// lib/services/user_service.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:ronoch_coffee/models/user_model.dart';
 
 class UserService {
-  // Use the correct base URL - match it with MockApiService
   static const String baseUrl = "https://6958c2cc6c3282d9f1d5ba0a.mockapi.io";
-
-  // Register new user
   static Future<User> registerUser(User user) async {
     final response = await http.post(
       Uri.parse('$baseUrl/users'),
@@ -24,7 +20,6 @@ class UserService {
     }
   }
 
-  // Get all users
   static Future<List<User>> getAllUsers() async {
     print('🔍 Fetching all users from: $baseUrl/users');
 
@@ -52,7 +47,6 @@ class UserService {
     }
   }
 
-  // Login user
   static Future<User?> login(String identifier, String password) async {
     print('🔐 Attempting login for identifier: $identifier');
 
@@ -91,7 +85,6 @@ class UserService {
     }
   }
 
-  // Get user by ID - FIXED VERSION
   static Future<User> getUserById(String userId) async {
     print('🔍 Fetching user by ID: $userId from $baseUrl/users/$userId');
 
@@ -119,7 +112,6 @@ class UserService {
     }
   }
 
-  // Update user
   static Future<User> updateUser(User user) async {
     print('📝 Updating user: ${user.id}');
 
@@ -139,13 +131,11 @@ class UserService {
     }
   }
 
-  // Check if user exists by email
   static Future<bool> checkEmailExists(String email) async {
     final users = await getAllUsers();
     return users.any((user) => user.email == email);
   }
 
-  // Check if user exists by phone
   static Future<bool> checkPhoneExists(String phone) async {
     final users = await getAllUsers();
     return users.any((user) => user.phone == phone);

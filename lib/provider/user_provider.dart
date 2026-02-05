@@ -1,4 +1,3 @@
-// providers/user_provider.dart - UPDATED (add only new methods)
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:ronoch_coffee/models/user_model.dart';
@@ -15,7 +14,6 @@ class UserProvider with ChangeNotifier {
   String? get error => _error;
   bool get isLoggedIn => _currentUser != null;
 
-  // Existing methods - KEEP AS IS
   Future<void> loadUserFromSession() async {
     _isLoading = true;
     notifyListeners();
@@ -35,7 +33,6 @@ class UserProvider with ChangeNotifier {
     }
   }
 
-  // Existing login method - KEEP AS IS
   Future<bool> login(String identifier, String password) async {
     _isLoading = true;
     _error = null;
@@ -45,7 +42,6 @@ class UserProvider with ChangeNotifier {
       final user = await UserService.login(identifier, password);
       if (user != null) {
         _currentUser = user;
-        // Use existing save method for compatibility
         await UserSession.saveUser(user.id, user.username, user.email);
         _isLoading = false;
         notifyListeners();
@@ -64,7 +60,6 @@ class UserProvider with ChangeNotifier {
     }
   }
 
-  // Existing register method - KEEP AS IS
   Future<bool> register(User user) async {
     _isLoading = true;
     _error = null;
@@ -89,7 +84,6 @@ class UserProvider with ChangeNotifier {
     }
   }
 
-  // Existing logout method - KEEP AS IS
   Future<void> logout() async {
     await UserSession.logout();
     _currentUser = null;
@@ -97,20 +91,15 @@ class UserProvider with ChangeNotifier {
   }
 
   // =========== NEW METHODS FOR PROFILE EDITING ===========
-
-  // Enhanced updateProfile that saves to API
   Future<bool> updateProfile(User updatedUser) async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      // 1. Update user in API
       final updatedUserFromApi = await UserService.updateUser(updatedUser);
 
-      // 2. Update local state
       _currentUser = updatedUserFromApi;
 
-      // 3. Update session with full profile data
       await UserSession.saveUserProfile(
         userId: updatedUserFromApi.id,
         username: updatedUserFromApi.username,
@@ -134,20 +123,15 @@ class UserProvider with ChangeNotifier {
     }
   }
 
-  // Update profile image
   Future<String?> updateProfileImage(File imageFile) async {
     if (_currentUser == null) return null;
 
     try {
-      // Since MockAPI doesn't support file uploads, use UI Avatars
       final username = _currentUser!.username;
       final avatarUrl =
           'https://ui-avatars.com/api/?name=${Uri.encodeComponent(username)}&background=6F4E37&color=fff&size=200';
-
-      // Update user with new avatar URL
       final updatedUser = _currentUser!.copyWith(profileImage: avatarUrl);
 
-      // Save to API
       final success = await updateProfile(updatedUser);
 
       return success ? avatarUrl : null;
@@ -157,7 +141,6 @@ class UserProvider with ChangeNotifier {
     }
   }
 
-  // Refresh user from API
   Future<void> refreshUser() async {
     if (_currentUser != null) {
       try {

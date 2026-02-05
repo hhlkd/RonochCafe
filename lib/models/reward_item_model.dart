@@ -4,7 +4,7 @@ class RewardItem {
   final String imageUrl;
   final String type;
   final String color;
-  final int point; // Note: This is "point" (singular) not "pointsRequired"
+  final int point;
 
   RewardItem({
     required this.id,
