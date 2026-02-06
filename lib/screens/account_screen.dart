@@ -389,7 +389,12 @@ class _AccountScreenState extends State<AccountScreen> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.red,
                           ),
-                          child: const Text('Logout'),
+                          child: const Text(
+                            'Logout',
+                            style: TextStyle(
+                              color: Color.fromARGB(255, 255, 255, 255),
+                            ),
+                          ),
                         ),
                       ],
                     ),

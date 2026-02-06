@@ -250,9 +250,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               onPressed: () {
                 if (_isEditing) {
+                  // Cancel editing - reset controllers to original values
                   _initializeControllers(user);
                   setState(() => _isEditing = false);
                 } else {
+                  // Start editing
+                  _initializeControllers(user);
                   setState(() => _isEditing = true);
                 }
               },
@@ -380,114 +383,123 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       padding: const EdgeInsets.all(20.0),
                       child: Column(
                         children: [
-                          _buildInfoRow("Username", user.username),
-                          const SizedBox(height: 20),
-                          _buildInfoRow("Email", user.email),
-                          const SizedBox(height: 20),
-                          _buildInfoRow(
-                            "Phone",
-                            user.phone.isNotEmpty ? user.phone : "Not set",
+                          // Username field
+                          _buildEditableInfoRow(
+                            label: "Username",
+                            value: user.username,
+                            controller: _usernameController,
+                            isEditing: _isEditing,
                           ),
                           const SizedBox(height: 20),
-                          _buildInfoRow(
-                            "Address",
-                            user.address.isNotEmpty ? user.address : "Not set",
+
+                          // Email field
+                          _buildEditableInfoRow(
+                            label: "Email",
+                            value: user.email,
+                            controller: _emailController,
+                            isEditing: _isEditing,
+                            keyboardType: TextInputType.emailAddress,
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Phone field
+                          _buildEditableInfoRow(
+                            label: "Phone",
+                            value:
+                                user.phone.isNotEmpty ? user.phone : "Not set",
+                            controller: _phoneController,
+                            isEditing: _isEditing,
+                            keyboardType: TextInputType.phone,
+                            placeholder: "Add phone number",
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Address field
+                          _buildEditableInfoRow(
+                            label: "Address",
+                            value:
+                                user.address.isNotEmpty
+                                    ? user.address
+                                    : "Not set",
+                            controller: _addressController,
+                            isEditing: _isEditing,
+                            maxLines: 2,
+                            placeholder: "Add address",
                           ),
 
                           const SizedBox(height: 30),
-                          // Edit Profile Button
-                          if (!_isEditing)
+
+                          // Edit/Save Profile Button
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed:
+                                  _isEditing
+                                      ? (_isSaving ? null : _saveProfileChanges)
+                                      : () {
+                                        setState(() => _isEditing = true);
+                                      },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF6F4E37),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child:
+                                  _isSaving
+                                      ? const SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation(
+                                            Colors.white,
+                                          ),
+                                        ),
+                                      )
+                                      : Text(
+                                        _isEditing
+                                            ? 'Save Changes'
+                                            : 'Edit Profile',
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                            ),
+                          ),
+
+                          // Cancel Button (only when editing)
+                          if (_isEditing) ...[
+                            const SizedBox(height: 15),
                             SizedBox(
                               width: double.infinity,
-                              child: ElevatedButton(
+                              child: OutlinedButton(
                                 onPressed: () {
-                                  setState(() => _isEditing = true);
+                                  _initializeControllers(user);
+                                  setState(() => _isEditing = false);
                                 },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF6F4E37),
+                                style: OutlinedButton.styleFrom(
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 16,
                                   ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
+                                  side: const BorderSide(color: Colors.grey),
                                 ),
                                 child: const Text(
-                                  'Edit Profile',
+                                  'Cancel',
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.white,
+                                    color: Colors.grey,
                                   ),
                                 ),
-                              ),
-                            ),
-
-                          // Editable Fields (when editing)
-                          if (_isEditing) ...[
-                            const SizedBox(height: 20),
-                            _buildEditableField(
-                              label: "Username",
-                              controller: _usernameController,
-                              icon: Icons.person,
-                            ),
-                            const SizedBox(height: 16),
-                            _buildEditableField(
-                              label: "Email",
-                              controller: _emailController,
-                              icon: Icons.email,
-                              keyboardType: TextInputType.emailAddress,
-                            ),
-                            const SizedBox(height: 16),
-                            _buildEditableField(
-                              label: "Phone",
-                              controller: _phoneController,
-                              icon: Icons.phone,
-                              keyboardType: TextInputType.phone,
-                            ),
-                            const SizedBox(height: 16),
-                            _buildEditableField(
-                              label: "Address",
-                              controller: _addressController,
-                              icon: Icons.location_on,
-                              maxLines: 2,
-                            ),
-                            const SizedBox(height: 30),
-                            // Save Button
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton(
-                                onPressed:
-                                    _isSaving ? null : _saveProfileChanges,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF6F4E37),
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 16,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                child:
-                                    _isSaving
-                                        ? const SizedBox(
-                                          height: 20,
-                                          width: 20,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            valueColor: AlwaysStoppedAnimation(
-                                              Colors.white,
-                                            ),
-                                          ),
-                                        )
-                                        : const Text(
-                                          'Save Changes',
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.white,
-                                          ),
-                                        ),
                               ),
                             ),
                           ],
@@ -500,7 +512,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
+  Widget _buildEditableInfoRow({
+    required String label,
+    required String value,
+    required TextEditingController controller,
+    required bool isEditing,
+    TextInputType keyboardType = TextInputType.text,
+    int maxLines = 1,
+    String placeholder = "",
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -513,71 +533,61 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade200),
-          ),
-          child: Text(
-            value,
-            style: const TextStyle(fontSize: 16, color: Colors.black87),
-          ),
-        ),
-      ],
-    );
-  }
 
-  Widget _buildEditableField({
-    required String label,
-    required TextEditingController controller,
-    required IconData icon,
-    TextInputType keyboardType = TextInputType.text,
-    int maxLines = 1,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(icon, color: const Color(0xFF6F4E37), size: 20),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                color: Color(0xFF6F4E37),
+        if (!isEditing)
+          // Display mode
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 16, color: Colors.black87),
+            ),
+          )
+        else
+          // Edit mode
+          TextField(
+            controller: controller,
+            keyboardType: keyboardType,
+            maxLines: maxLines,
+            style: const TextStyle(fontSize: 16, color: Colors.black87),
+            decoration: InputDecoration(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: controller,
-          keyboardType: keyboardType,
-          maxLines: maxLines,
-          decoration: InputDecoration(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 12,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF6F4E37), width: 2),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(
+                  color: Color(0xFF6F4E37),
+                  width: 2,
+                ),
+              ),
+              hintText: placeholder.isNotEmpty ? placeholder : value,
+              hintStyle: TextStyle(
+                fontSize: 16,
+                color:
+                    value == "Not set" || placeholder.isNotEmpty
+                        ? Colors.grey.shade500
+                        : Colors.black87,
+              ),
+              filled: true,
+              fillColor: Colors.grey.shade50,
             ),
           ),
-        ),
       ],
     );
   }
