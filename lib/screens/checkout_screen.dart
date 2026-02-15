@@ -727,7 +727,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       );
       return;
     }
-    cart.clearCart();
+    await cart.clearCart();
+
     if (Navigator.canPop(context)) {
       Navigator.pop(context);
     }

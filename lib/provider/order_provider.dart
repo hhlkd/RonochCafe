@@ -28,10 +28,20 @@ class OrderProvider with ChangeNotifier {
   double get averageOrderValue =>
       totalOrders > 0 ? totalSpent / totalOrders : 0;
 
-  void deleteOrder(String orderId) {
-    _orders.removeWhere((order) => order.id == orderId);
-    notifyListeners();
-    print('✅ Order $orderId deleted');
+  Future<void> deleteOrder(String orderId) async {
+    try {
+      print('🗑️ Deleting order: $orderId');
+
+      await MockApiService.deleteOrder(orderId);
+
+      _orders.removeWhere((order) => order.id == orderId);
+      notifyListeners();
+
+      print('✅ Order deleted successfully');
+    } catch (e) {
+      print('❌ Failed to delete order: $e');
+      throw Exception('Could not delete order. Please try again.');
+    }
   }
 
   Future<void> initialize() async {

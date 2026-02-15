@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import '../models/product_model.dart';
 import '../provider/cart_provider.dart';
+import '../provider/favorites_provider.dart';
 
 class DetailsScreen extends StatefulWidget {
   final Product product;
@@ -14,12 +15,12 @@ class DetailsScreen extends StatefulWidget {
 }
 
 class _DetailsScreenState extends State<DetailsScreen> {
-  // Selection states
   String _selectedSize = 'M';
   String _selectedSugar = '0%';
   String _selectedIce = '0%';
   int _quantity = 1;
   bool _isFavorite = false;
+  late FavoritesProvider _favoritesProvider;
 
   final Map<String, double> _sizePrices = {
     'S': 1.99,
@@ -39,6 +40,24 @@ class _DetailsScreenState extends State<DetailsScreen> {
       _isDrink
           ? (_sizePrices[_selectedSize] ?? widget.product.price)
           : widget.product.price;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _favoritesProvider = Provider.of<FavoritesProvider>(context);
+    _isFavorite = _favoritesProvider.isFavorite(widget.product.id);
+  }
+
+  void _toggleFavorite() {
+    if (_isFavorite) {
+      _favoritesProvider.removeFromFavorites(widget.product.id);
+    } else {
+      _favoritesProvider.addToFavorites(widget.product);
+    }
+    setState(() {
+      _isFavorite = !_isFavorite;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -65,7 +84,6 @@ class _DetailsScreenState extends State<DetailsScreen> {
     );
   }
 
-  // --- NEW IMPROVED HEADER ---
   Widget _buildTopHeader() {
     return Stack(
       clipBehavior: Clip.none,
@@ -91,7 +109,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                 _headerCircleButton(
                   icon: _isFavorite ? Icons.favorite : Icons.favorite_border,
                   iconColor: _isFavorite ? Colors.red : Colors.black,
-                  onTap: () => setState(() => _isFavorite = !_isFavorite),
+                  onTap: _toggleFavorite,
                 ),
               ],
             ),
@@ -142,7 +160,6 @@ class _DetailsScreenState extends State<DetailsScreen> {
     );
   }
 
-  // --- PRODUCT INFO (NAME, RATINGS, TIME) ---
   Widget _buildProductInfo() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(25, 30, 25, 10),
@@ -177,7 +194,10 @@ class _DetailsScreenState extends State<DetailsScreen> {
             children: [
               const Icon(Icons.star, color: Colors.amber, size: 20),
               const SizedBox(width: 4),
-              const Text("4.8", style: TextStyle(fontWeight: FontWeight.bold)),
+              Text(
+                widget.product.rating.toString(),
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
               const SizedBox(width: 15),
               const Icon(Icons.timer_outlined, color: Colors.grey, size: 20),
               const SizedBox(width: 4),
@@ -189,7 +209,6 @@ class _DetailsScreenState extends State<DetailsScreen> {
     );
   }
 
-  // --- DRINK CUSTOMIZATION LAYOUT ---
   Widget _buildDrinkCustomization() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 20),
@@ -210,7 +229,6 @@ class _DetailsScreenState extends State<DetailsScreen> {
     );
   }
 
-  // --- FOOD DESCRIPTION LAYOUT ---
   Widget _buildFoodDescription() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 20),
@@ -223,7 +241,9 @@ class _DetailsScreenState extends State<DetailsScreen> {
           ),
           const SizedBox(height: 10),
           Text(
-            "Our ${widget.product.name} is prepared fresh daily with premium ingredients to ensure the best taste and quality for your meal.",
+            widget.product.description.isNotEmpty
+                ? widget.product.description
+                : "Our ${widget.product.name} is prepared fresh daily with premium ingredients to ensure the best taste and quality for your meal.",
             style: const TextStyle(
               fontSize: 16,
               color: Colors.grey,
@@ -235,7 +255,6 @@ class _DetailsScreenState extends State<DetailsScreen> {
     );
   }
 
-  // --- SHARED UI LOGIC ---
   Widget _buildOptionRow(String type) {
     List<Map<String, String>> options = [];
     String currentSelection = '';
@@ -328,6 +347,8 @@ class _DetailsScreenState extends State<DetailsScreen> {
   }
 
   Widget _buildBottomAction() {
+    final bool canAdd = widget.product.isAvailable;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(25, 20, 25, 35),
       decoration: BoxDecoration(
@@ -385,46 +406,71 @@ class _DetailsScreenState extends State<DetailsScreen> {
             width: double.infinity,
             height: 55,
             child: ElevatedButton(
-              onPressed: () async {
-                final cartProvider = Provider.of<CartProvider>(
-                  context,
-                  listen: false,
-                );
-                await cartProvider.addToCart(
-                  widget.product.id,
-                  widget.product.name,
-                  _currentPrice,
-                  widget.product.imageUrl,
-                  quantity: _quantity,
-                  size: _isDrink ? _selectedSize : '',
-                  sugarLevel: _isDrink ? _selectedSugar : '',
-                  iceLevel: _isDrink ? _selectedIce : '',
-                );
+              onPressed:
+                  canAdd
+                      ? () async {
+                        try {
+                          final cartProvider = Provider.of<CartProvider>(
+                            context,
+                            listen: false,
+                          );
 
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    backgroundColor: const Color(0xFFA68A73),
-                    content: Text("${widget.product.name} added to cart!"),
-                    action: SnackBarAction(
-                      label: "VIEW CART",
-                      textColor: Colors.white,
-                      onPressed: () {
-                        Navigator.pushNamed(context, '/cart');
-                      },
-                    ),
-                  ),
-                );
-              },
+                          // Add to cart
+                          await cartProvider.addToCart(
+                            widget.product.id,
+                            widget.product.name,
+                            _currentPrice,
+                            widget.product.imageUrl,
+                            quantity: _quantity,
+                            size: _isDrink ? _selectedSize : '',
+                            sugarLevel: _isDrink ? _selectedSugar : '',
+                            iceLevel: _isDrink ? _selectedIce : '',
+                          );
+
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                backgroundColor: const Color(0xFFA68A73),
+                                content: Text(
+                                  "${widget.product.name} added to cart!",
+                                ),
+                                action: SnackBarAction(
+                                  label: "VIEW CART",
+                                  textColor: Colors.white,
+                                  onPressed: () {
+                                    Navigator.pushNamed(context, '/cart');
+                                  },
+                                ),
+                                duration: const Duration(seconds: 3),
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                backgroundColor: Colors.red,
+                                content: Text(
+                                  'Failed to add to cart: ${e.toString()}',
+                                ),
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                        }
+                      }
+                      : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFA68A73),
+                backgroundColor:
+                    canAdd ? const Color(0xFFA68A73) : Colors.grey.shade400,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(15),
                 ),
                 elevation: 0,
               ),
-              child: const Text(
-                "Add to Cart",
-                style: TextStyle(
+              child: Text(
+                canAdd ? "Add to Cart" : "Unavailable",
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,

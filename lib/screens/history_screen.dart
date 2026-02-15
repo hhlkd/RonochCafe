@@ -626,36 +626,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         const SizedBox(width: 8),
                         ElevatedButton(
                           onPressed: () {
-                            _reorderItems(order, cartProvider);
+                            _deleteOrder(order, context);
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF8B4513),
+                            backgroundColor:
+                                Colors.red, // optional: make it red for delete
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                           ),
                           child: const Text(
-                            'Reorder',
+                            'Delete', // you can change text to "Delete" or keep "Reorder"
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.white,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          onPressed: () {
-                            _deleteOrder(order, context);
-                          },
-                          icon: const Icon(
-                            Icons.delete_outline,
-                            color: Colors.red,
-                          ),
-                          tooltip: 'Delete Order',
-                          constraints: const BoxConstraints(
-                            minWidth: 36,
-                            minHeight: 36,
-                          ),
-                          padding: EdgeInsets.zero,
                         ),
                       ],
                     ),

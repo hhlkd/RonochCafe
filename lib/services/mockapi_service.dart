@@ -72,6 +72,21 @@ class MockApiService {
     }
   }
 
+  static Future<void> deleteOrder(String orderId) async {
+    final url = Uri.parse(
+      'https://6958c2cc6c3282d9f1d5ba0a.mockapi.io/orders/$orderId',
+    );
+
+    final response = await http.delete(
+      url,
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to delete order. Status: ${response.statusCode}');
+    }
+  }
+
   static int calculatePointsFromCart(List<CartItem> cartItems) {
     final totalQuantity = cartItems.fold(0, (sum, item) => sum + item.quantity);
     return totalQuantity * 5; // 5 points per drink

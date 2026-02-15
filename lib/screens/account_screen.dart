@@ -67,6 +67,7 @@ class _AccountScreenState extends State<AccountScreen> {
     }
   }
 
+  // ✅ CORRECT - With mounted check
   Future<void> _loadLocalProfileImage(String userId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -75,22 +76,37 @@ class _AccountScreenState extends State<AccountScreen> {
       if (imagePath != null) {
         final file = File(imagePath);
         if (await file.exists()) {
-          setState(() {
-            _imageFile = file;
-          });
+          if (mounted) {
+            // ✅ Check mounted
+            setState(() {
+              _imageFile = file;
+            });
+          }
         } else {
           await prefs.remove('profile_image_$userId');
+          if (mounted) {
+            // ✅ Check mounted
+            setState(() {
+              _imageFile = null;
+            });
+          }
+        }
+      } else {
+        if (mounted) {
+          // ✅ Check mounted
           setState(() {
             _imageFile = null;
           });
         }
-      } else {
+      }
+    } catch (e) {
+      print('Error loading local image: $e');
+      if (mounted) {
+        // ✅ Check mounted
         setState(() {
           _imageFile = null;
         });
       }
-    } catch (e) {
-      print('Error loading local image: $e');
     }
   }
 
@@ -1041,74 +1057,88 @@ class _AccountScreenState extends State<AccountScreen> {
     }
   }
 
+  // ✅ ក្នុង _buildPointsCard() method ដ940
+
   Widget _buildPointsCard(int points) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFB08968), Color(0xFF8B6B4D)],
-        ),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFB08968).withOpacity(0.3),
-            blurRadius: 15,
-            spreadRadius: 2,
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Ronoch Café",
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  "When Life Hurt, Coffee Heals!",
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.white70,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  "Points Balance",
-                  style: TextStyle(fontSize: 13, color: Colors.white),
-                ),
-              ],
+    // ✅ ប្រើ Consumer ដើម្បីស្តាប់ សម្រាប់ Reward Provider updates
+    return Consumer<RewardProvider>(
+      builder: (context, rewardProvider, child) {
+        // Use provider's user points if available
+        final displayPoints =
+            rewardProvider.userPoints > 0 ? rewardProvider.userPoints : points;
+
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFFB08968), Color(0xFF8B6B4D)],
             ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.white.withOpacity(0.3)),
-            ),
-            child: Text(
-              points.toString(),
-              style: const TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFB08968).withOpacity(0.3),
+                blurRadius: 15,
+                spreadRadius: 2,
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Ronoch Café",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      "When Life Hurt, Coffee Heals!",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white70,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      "Points Balance",
+                      style: TextStyle(fontSize: 13, color: Colors.white),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.white.withOpacity(0.3)),
+                ),
+                child: Text(
+                  displayPoints.toString(), // ✅ Display latest points
+                  style: const TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

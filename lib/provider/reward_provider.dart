@@ -1,3 +1,5 @@
+// ✅ ក្នុង lib/provider/reward_provider.dart
+
 import 'package:flutter/material.dart';
 import 'package:ronoch_coffee/models/reward_item_model.dart';
 import 'package:ronoch_coffee/services/mockapi_service.dart';
@@ -7,11 +9,13 @@ class RewardProvider with ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   bool _isRedeeming = false;
+  int _userPoints = 0; // ✅ เพิ่ม user points tracking
 
   List<RewardItem> get rewards => _rewards;
   bool get isLoading => _isLoading;
   bool get isRedeeming => _isRedeeming;
   String? get error => _error;
+  int get userPoints => _userPoints; // ✅ Getter for points
 
   Future<void> fetchRewards() async {
     _isLoading = true;
@@ -28,6 +32,56 @@ class RewardProvider with ChangeNotifier {
       print('❌ Error fetching rewards: $e');
     } finally {
       _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // ✅ NEW METHOD: Update user points after purchase
+  Future<void> updateUserPoints(int newPoints) async {
+    try {
+      print('💰 Updating points to: $newPoints');
+
+      _userPoints = newPoints;
+      notifyListeners(); // ✅ NOTIFY UI IMMEDIATELY
+
+      print('✅ Points updated and UI notified');
+    } catch (e) {
+      print('❌ Error updating points: $e');
+      _error = 'Failed to update points: $e';
+      notifyListeners();
+    }
+  }
+
+  // ✅ NEW METHOD: Add points to existing
+  Future<void> addPoints(int pointsToAdd) async {
+    try {
+      print('➕ Adding $pointsToAdd points');
+
+      _userPoints += pointsToAdd;
+      notifyListeners(); // ✅ NOTIFY UI IMMEDIATELY
+
+      print('✅ Points added: $_userPoints total');
+    } catch (e) {
+      print('❌ Error adding points: $e');
+      _error = 'Failed to add points: $e';
+      notifyListeners();
+    }
+  }
+
+  // ✅ NEW METHOD: Load user points
+  Future<void> loadUserPoints(String userId) async {
+    try {
+      print('📊 Loading user points for: $userId');
+
+      final user = await MockApiService.getUserById(userId);
+      if (user != null) {
+        _userPoints = user.point;
+        notifyListeners();
+        print('✅ Points loaded: $_userPoints');
+      }
+    } catch (e) {
+      print('❌ Error loading points: $e');
+      _error = 'Failed to load points: $e';
       notifyListeners();
     }
   }

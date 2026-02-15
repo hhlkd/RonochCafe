@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
+import 'dart:convert'; // for base64
 import '../provider/user_provider.dart';
 import '../models/user_model.dart';
 
@@ -15,7 +15,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final ImagePicker _picker = ImagePicker();
-  File? _imageFile;
+  String? _profileImageBase64; // store base64 image
   bool _isSaving = false;
   bool _isEditing = false;
 
@@ -30,6 +30,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _loadLocalProfileImage();
   }
 
+  /// Load profile image from SharedPreferences (base64)
   Future<void> _loadLocalProfileImage() async {
     try {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
@@ -37,26 +38,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       if (user != null) {
         final prefs = await SharedPreferences.getInstance();
-        final imagePath = prefs.getString('profile_image_${user.id}');
+        final base64String = prefs.getString('profile_image_${user.id}');
 
-        if (imagePath != null) {
-          final file = File(imagePath);
-          if (await file.exists()) {
-            setState(() {
-              _imageFile = file;
-            });
-            print('📸 Loaded local profile image for user ${user.id}');
-          } else {
-            // Remove invalid path from storage
-            await prefs.remove('profile_image_${user.id}');
-          }
-        }
+        setState(() {
+          _profileImageBase64 = base64String;
+        });
+        print('📸 Loaded profile image for user ${user.id}');
       }
     } catch (e) {
       print('Error loading local image: $e');
     }
   }
 
+  /// Pick image from gallery and save as base64
   Future<void> _pickImage() async {
     try {
       final XFile? pickedFile = await _picker.pickImage(
@@ -66,7 +60,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
 
       if (pickedFile != null) {
-        final imageFile = File(pickedFile.path);
         final userProvider = Provider.of<UserProvider>(context, listen: false);
         final user = userProvider.currentUser;
         if (user != null) {
@@ -76,10 +69,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
               backgroundColor: Color(0xFF6F4E37),
             ),
           );
-          await _saveImageLocally(imageFile, user.id);
+
+          // Read bytes and convert to base64
+          final bytes = await pickedFile.readAsBytes();
+          final base64String = base64Encode(bytes);
+
+          // Save to SharedPreferences
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('profile_image_${user.id}', base64String);
+
+          // Update UI immediately
           setState(() {
-            _imageFile = imageFile;
+            _profileImageBase64 = base64String;
           });
+
+          // Optional: update user's profileImage URL (avatar fallback)
           final avatarUrl =
               'https://ui-avatars.com/api/?name=${Uri.encodeComponent(user.username)}&background=6F4E37&color=fff&size=200';
           final updatedUser = user.copyWith(profileImage: avatarUrl);
@@ -105,35 +109,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<void> _saveImageLocally(File imageFile, String userId) async {
-    try {
-      final appDir = await getApplicationDocumentsDirectory();
-      final profileDir = Directory('${appDir.path}/profile_images');
-
-      if (!await profileDir.exists()) {
-        await profileDir.create(recursive: true);
-      }
-
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final fileName = 'profile_${userId}_$timestamp.jpg';
-      final newPath = '${profileDir.path}/$fileName';
-
-      await imageFile.copy(newPath);
-
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('profile_image_$userId', newPath);
-      await prefs.setString('profile_image_current_user', userId);
-
-      print('💾 Saved profile image to: $newPath');
-    } catch (e) {
-      print('Error saving image locally: $e');
-    }
-  }
-
-  Future<Directory> getApplicationDocumentsDirectory() async {
-    return Directory.current;
-  }
-
+  /// Initialize text controllers with current user data
   void _initializeControllers(User user) {
     _usernameController.text = user.username;
     _emailController.text = user.email;
@@ -141,6 +117,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _addressController.text = user.address;
   }
 
+  /// Save profile changes (username, email, etc.)
   Future<void> _saveProfileChanges() async {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final user = userProvider.currentUser;
@@ -158,17 +135,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
         phone: _phoneController.text.trim(),
         password: user.password,
         address: _addressController.text.trim(),
-        profileImage: user.profileImage,
+        profileImage: user.profileImage, // keep existing
         point: user.point,
         createdAt: user.createdAt,
       );
 
-      // Validate inputs
+      // Basic validation
       if (updatedUser.username.isEmpty || updatedUser.email.isEmpty) {
         throw Exception('Username and email are required');
       }
 
-      // Save to API
       final success = await userProvider.updateProfile(updatedUser);
 
       if (success) {
@@ -196,21 +172,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  /// Returns the image provider: MemoryImage (base64) or NetworkImage
   ImageProvider? _getProfileImage(User? user) {
-    if (_imageFile != null) {
-      return FileImage(_imageFile!);
+    if (_profileImageBase64 != null) {
+      return MemoryImage(base64Decode(_profileImageBase64!));
     }
     if (user != null &&
         user.profileImage.isNotEmpty &&
         user.profileImage.startsWith('http')) {
       return NetworkImage(user.profileImage);
     }
-
     return null;
   }
 
+  /// Determines whether to show the default initials icon
   bool _shouldShowDefaultIcon(User user) {
-    return _imageFile == null &&
+    return _profileImageBase64 == null &&
         (user.profileImage.isEmpty ||
             user.profileImage == "https://example.com/profile.jpg" ||
             user.profileImage ==
@@ -222,11 +199,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final userProvider = Provider.of<UserProvider>(context);
     final user = userProvider.currentUser;
 
-    if (user != null && !_isEditing) {
+    // Initialize controllers once when user is loaded and not editing
+    if (user != null && !_isEditing && _usernameController.text.isEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_usernameController.text.isEmpty) {
-          _initializeControllers(user);
-        }
+        _initializeControllers(user);
       });
     }
 
@@ -250,7 +226,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               onPressed: () {
                 if (_isEditing) {
-                  // Cancel editing - reset controllers to original values
+                  // Cancel editing – reset to original values
                   _initializeControllers(user);
                   setState(() => _isEditing = false);
                 } else {
@@ -354,10 +330,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ],
                             ),
                           ),
-
                           const SizedBox(height: 15),
-
-                          // User Info
+                          // Welcome text
                           Text(
                             "Welcome back,",
                             style: TextStyle(
@@ -383,7 +357,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       padding: const EdgeInsets.all(20.0),
                       child: Column(
                         children: [
-                          // Username field
+                          // Username
                           _buildEditableInfoRow(
                             label: "Username",
                             value: user.username,
@@ -392,7 +366,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           const SizedBox(height: 20),
 
-                          // Email field
+                          // Email
                           _buildEditableInfoRow(
                             label: "Email",
                             value: user.email,
@@ -402,7 +376,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           const SizedBox(height: 20),
 
-                          // Phone field
+                          // Phone
                           _buildEditableInfoRow(
                             label: "Phone",
                             value:
@@ -414,7 +388,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           const SizedBox(height: 20),
 
-                          // Address field
+                          // Address
                           _buildEditableInfoRow(
                             label: "Address",
                             value:
@@ -429,7 +403,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                           const SizedBox(height: 30),
 
-                          // Edit/Save Profile Button
+                          // Edit/Save Button
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
@@ -473,7 +447,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                           ),
 
-                          // Cancel Button (only when editing)
+                          // Cancel button (only when editing)
                           if (_isEditing) ...[
                             const SizedBox(height: 15),
                             SizedBox(
@@ -512,6 +486,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  /// Builds an editable info row (label + value or text field)
   Widget _buildEditableInfoRow({
     required String label,
     required String value,
