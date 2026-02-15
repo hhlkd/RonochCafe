@@ -96,6 +96,44 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
+  void _deleteOrder(Order order, BuildContext context) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Delete Order'),
+            content: Text(
+              'Are you sure you want to delete Order #${order.id.length > 8 ? order.id.substring(0, 8) : order.id}?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  final orderProvider = context.read<OrderProvider>();
+                  orderProvider.deleteOrder(order.id);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Order deleted successfully'),
+                      backgroundColor: Colors.red,
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                child: const Text(
+                  'Delete',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final orderProvider = Provider.of<OrderProvider>(context);
@@ -602,6 +640,22 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          onPressed: () {
+                            _deleteOrder(order, context);
+                          },
+                          icon: const Icon(
+                            Icons.delete_outline,
+                            color: Colors.red,
+                          ),
+                          tooltip: 'Delete Order',
+                          constraints: const BoxConstraints(
+                            minWidth: 36,
+                            minHeight: 36,
+                          ),
+                          padding: EdgeInsets.zero,
                         ),
                       ],
                     ),

@@ -28,6 +28,12 @@ class OrderProvider with ChangeNotifier {
   double get averageOrderValue =>
       totalOrders > 0 ? totalSpent / totalOrders : 0;
 
+  void deleteOrder(String orderId) {
+    _orders.removeWhere((order) => order.id == orderId);
+    notifyListeners();
+    print('✅ Order $orderId deleted');
+  }
+
   Future<void> initialize() async {
     try {
       print('🔄 Initializing OrderProvider...');
