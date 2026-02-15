@@ -4,7 +4,6 @@ import 'package:ronoch_coffee/provider/order_provider.dart';
 import 'package:ronoch_coffee/provider/product_provider.dart';
 import 'package:ronoch_coffee/provider/reward_provider.dart';
 import 'package:ronoch_coffee/provider/user_provider.dart';
-import 'package:ronoch_coffee/provider/favorites_provider.dart';
 import 'package:ronoch_coffee/screens/Checkout_screen.dart';
 import 'package:ronoch_coffee/screens/auth/login_screen.dart';
 import 'package:ronoch_coffee/screens/auth/splash_screen.dart';
@@ -23,9 +22,6 @@ void main() {
         ChangeNotifierProvider(create: (_) => OrderProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
         ChangeNotifierProvider(create: (_) => RewardProvider()),
-        ChangeNotifierProvider(
-          create: (_) => FavoritesProvider(),
-        ), // ADD THIS LINE
       ],
       child: const MyApp(),
     ),
