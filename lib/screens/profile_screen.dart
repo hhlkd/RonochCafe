@@ -15,7 +15,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final ImagePicker _picker = ImagePicker();
-  String? _profileImageBase64; // store base64 image
+  String? _profileImageBase64;
   bool _isSaving = false;
   bool _isEditing = false;
 
@@ -30,7 +30,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _loadLocalProfileImage();
   }
 
-  /// Load profile image from SharedPreferences (base64)
   Future<void> _loadLocalProfileImage() async {
     try {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
@@ -50,7 +49,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  /// Pick image from gallery and save as base64
   Future<void> _pickImage() async {
     try {
       final XFile? pickedFile = await _picker.pickImage(
@@ -69,21 +67,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               backgroundColor: Color(0xFF6F4E37),
             ),
           );
-
-          // Read bytes and convert to base64
           final bytes = await pickedFile.readAsBytes();
           final base64String = base64Encode(bytes);
-
-          // Save to SharedPreferences
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('profile_image_${user.id}', base64String);
 
-          // Update UI immediately
           setState(() {
             _profileImageBase64 = base64String;
           });
 
-          // Optional: update user's profileImage URL (avatar fallback)
           final avatarUrl =
               'https://ui-avatars.com/api/?name=${Uri.encodeComponent(user.username)}&background=6F4E37&color=fff&size=200';
           final updatedUser = user.copyWith(profileImage: avatarUrl);
@@ -109,7 +101,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  /// Initialize text controllers with current user data
   void _initializeControllers(User user) {
     _usernameController.text = user.username;
     _emailController.text = user.email;
@@ -117,7 +108,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _addressController.text = user.address;
   }
 
-  /// Save profile changes (username, email, etc.)
   Future<void> _saveProfileChanges() async {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final user = userProvider.currentUser;
@@ -127,7 +117,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _isSaving = true);
 
     try {
-      // Create updated user object
       final updatedUser = User(
         id: user.id,
         username: _usernameController.text.trim(),
@@ -135,12 +124,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         phone: _phoneController.text.trim(),
         password: user.password,
         address: _addressController.text.trim(),
-        profileImage: user.profileImage, // keep existing
+        profileImage: user.profileImage,
         point: user.point,
         createdAt: user.createdAt,
       );
 
-      // Basic validation
       if (updatedUser.username.isEmpty || updatedUser.email.isEmpty) {
         throw Exception('Username and email are required');
       }
@@ -172,11 +160,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  /// Returns the image provider: MemoryImage (base64) or NetworkImage
   ImageProvider? _getProfileImage(User? user) {
-    if (_profileImageBase64 != null) {
-      return MemoryImage(base64Decode(_profileImageBase64!));
+    try {
+      if (_profileImageBase64 != null && _profileImageBase64!.isNotEmpty) {
+        return MemoryImage(base64Decode(_profileImageBase64!));
+      }
+    } catch (e) {
+      print('Error decoding profile image: $e');
+      _profileImageBase64 = null;
     }
+
     if (user != null &&
         user.profileImage.isNotEmpty &&
         user.profileImage.startsWith('http')) {
@@ -185,7 +178,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return null;
   }
 
-  /// Determines whether to show the default initials icon
   bool _shouldShowDefaultIcon(User user) {
     return _profileImageBase64 == null &&
         (user.profileImage.isEmpty ||
@@ -199,7 +191,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final userProvider = Provider.of<UserProvider>(context);
     final user = userProvider.currentUser;
 
-    // Initialize controllers once when user is loaded and not editing
     if (user != null && !_isEditing && _usernameController.text.isEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _initializeControllers(user);
@@ -226,11 +217,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               onPressed: () {
                 if (_isEditing) {
-                  // Cancel editing – reset to original values
                   _initializeControllers(user);
                   setState(() => _isEditing = false);
                 } else {
-                  // Start editing
                   _initializeControllers(user);
                   setState(() => _isEditing = true);
                 }
@@ -274,7 +263,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               : SingleChildScrollView(
                 child: Column(
                   children: [
-                    // Profile Header
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.only(bottom: 30, top: 20),
@@ -287,7 +275,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       child: Column(
                         children: [
-                          // Profile Image
                           GestureDetector(
                             onTap: _pickImage,
                             child: Stack(
@@ -331,7 +318,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                           ),
                           const SizedBox(height: 15),
-                          // Welcome text
                           Text(
                             "Welcome back,",
                             style: TextStyle(
@@ -352,12 +338,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
 
-                    // Profile Form
                     Padding(
                       padding: const EdgeInsets.all(20.0),
                       child: Column(
                         children: [
-                          // Username
                           _buildEditableInfoRow(
                             label: "Username",
                             value: user.username,
@@ -366,7 +350,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           const SizedBox(height: 20),
 
-                          // Email
                           _buildEditableInfoRow(
                             label: "Email",
                             value: user.email,
@@ -375,8 +358,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             keyboardType: TextInputType.emailAddress,
                           ),
                           const SizedBox(height: 20),
-
-                          // Phone
                           _buildEditableInfoRow(
                             label: "Phone",
                             value:
@@ -387,8 +368,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             placeholder: "Add phone number",
                           ),
                           const SizedBox(height: 20),
-
-                          // Address
                           _buildEditableInfoRow(
                             label: "Address",
                             value:
@@ -402,8 +381,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
 
                           const SizedBox(height: 30),
-
-                          // Edit/Save Button
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
@@ -446,8 +423,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       ),
                             ),
                           ),
-
-                          // Cancel button (only when editing)
                           if (_isEditing) ...[
                             const SizedBox(height: 15),
                             SizedBox(
@@ -486,7 +461,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  /// Builds an editable info row (label + value or text field)
   Widget _buildEditableInfoRow({
     required String label,
     required String value,
@@ -510,7 +484,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const SizedBox(height: 8),
 
         if (!isEditing)
-          // Display mode
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -525,7 +498,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           )
         else
-          // Edit mode
           TextField(
             controller: controller,
             keyboardType: keyboardType,

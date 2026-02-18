@@ -6,6 +6,7 @@ import 'package:ronoch_coffee/provider/order_provider.dart';
 import 'package:ronoch_coffee/provider/cart_provider.dart';
 import 'package:intl/intl.dart';
 import 'package:ronoch_coffee/services/user_session.dart';
+import 'package:focus_detector/focus_detector.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -29,31 +30,29 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Future<void> _loadInitialData() async {
     try {
-      // Get current user from session
       final userData = await UserSession.getUser();
-
       if (mounted) {
         setState(() {
           _currentUserId = userData['userId']?.toString();
           _currentUserName = userData['username']?.toString();
         });
-
-        // Only fetch orders if user is logged in
         if (_currentUserId != null && _currentUserId!.isNotEmpty) {
           final orderProvider = context.read<OrderProvider>();
           orderProvider.setUserId(_currentUserId!);
           await orderProvider.fetchOrders();
         }
-
         _initialDataLoaded = true;
       }
     } catch (e) {
       print('Error loading initial data: $e');
-      if (mounted) {
-        setState(() {
-          _initialDataLoaded = true;
-        });
-      }
+      if (mounted) setState(() => _initialDataLoaded = true);
+    }
+  }
+
+  Future<void> _refreshOrders() async {
+    if (_currentUserId != null && _currentUserId!.isNotEmpty) {
+      final orderProvider = context.read<OrderProvider>();
+      await orderProvider.fetchOrders(forceRefresh: true);
     }
   }
 
@@ -138,6 +137,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget build(BuildContext context) {
     final orderProvider = Provider.of<OrderProvider>(context);
     final cartProvider = Provider.of<CartProvider>(context);
+
     if (!_initialDataLoaded) {
       return const Scaffold(
         body: Center(
@@ -145,6 +145,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ),
       );
     }
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -177,40 +178,43 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ),
         ],
       ),
-      body:
-          orderProvider.isLoading && orderProvider.orders.isEmpty
-              ? const Center(
-                child: CircularProgressIndicator(color: Color(0xFF8B4513)),
-              )
-              : orderProvider.error != null && orderProvider.orders.isEmpty
-              ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.error, size: 80, color: Colors.red.shade300),
-                    const SizedBox(height: 16),
-                    Text(
-                      orderProvider.error!,
-                      style: const TextStyle(color: Colors.red, fontSize: 18),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () => orderProvider.fetchOrders(),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF8B4513),
+      body: FocusDetector(
+        onFocusGained: _refreshOrders,
+        child:
+            orderProvider.isLoading && orderProvider.orders.isEmpty
+                ? const Center(
+                  child: CircularProgressIndicator(color: Color(0xFF8B4513)),
+                )
+                : orderProvider.error != null && orderProvider.orders.isEmpty
+                ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.error, size: 80, color: Colors.red.shade300),
+                      const SizedBox(height: 16),
+                      Text(
+                        orderProvider.error!,
+                        style: const TextStyle(color: Colors.red, fontSize: 18),
+                        textAlign: TextAlign.center,
                       ),
-                      child: const Text(
-                        'Retry',
-                        style: TextStyle(color: Colors.white),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () => orderProvider.fetchOrders(),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF8B4513),
+                        ),
+                        child: const Text(
+                          'Retry',
+                          style: TextStyle(color: Colors.white),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              )
-              : orderProvider.orders.isEmpty
-              ? _buildNoOrdersState()
-              : _buildOrderList(orderProvider, cartProvider),
+                    ],
+                  ),
+                )
+                : orderProvider.orders.isEmpty
+                ? _buildNoOrdersState()
+                : _buildOrderList(orderProvider, cartProvider),
+      ),
     );
   }
 
@@ -412,7 +416,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Order Header
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -629,12 +632,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             _deleteOrder(order, context);
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor:
-                                Colors.red, // optional: make it red for delete
+                            backgroundColor: Colors.red,
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                           ),
                           child: const Text(
-                            'Delete', // you can change text to "Delete" or keep "Reorder"
+                            'Delete',
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.white,
@@ -927,44 +929,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  void _reorderItems(Order order, CartProvider cartProvider) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Reorder Items'),
-            content: const Text(
-              'This will clear your current cart and add items from this order. Do you want to continue?',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Reorder feature coming soon'),
-                      backgroundColor: Color(0xFF8B4513),
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF8B4513),
-                ),
-                child: const Text(
-                  'Reorder',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ),
-            ],
-          ),
     );
   }
 

@@ -14,6 +14,7 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _phoneEmailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -23,6 +24,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   final Color _labelColor = const Color(0xFF9E8470);
   final Color _btnColor = const Color(0xFF9E8470);
+
+  final RegExp _emailRegex = RegExp(
+    r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+  );
+
+  final RegExp _phoneRegex = RegExp(r'^[0-9]{9,10}$');
 
   @override
   Widget build(BuildContext context) {
@@ -39,114 +46,166 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ),
           ),
-
           SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 30),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const SizedBox(height: 40),
-
-                  Center(child: SizedBox(height: 260, width: 220)),
-
-                  Text(
-                    'Register',
-                    style: TextStyle(
-                      fontSize: 34,
-                      fontWeight: FontWeight.bold,
-                      color: _labelColor,
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 40),
+                    Center(child: SizedBox(height: 260, width: 220)),
+                    Text(
+                      'Register',
+                      style: TextStyle(
+                        fontSize: 34,
+                        fontWeight: FontWeight.bold,
+                        color: _labelColor,
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 10),
 
-                  const SizedBox(height: 10),
+                    _buildLabel('Username'),
+                    TextFormField(
+                      controller: _usernameController,
+                      style: TextStyle(color: _labelColor),
+                      decoration: _inputDecoration('Enter Username'),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Username is required';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 20),
 
-                  _buildLabel('Username'),
-                  _buildTextField(_usernameController, 'Enter Username'),
+                    _buildLabel('Phone or Email'),
+                    TextFormField(
+                      controller: _phoneEmailController,
+                      style: TextStyle(color: _labelColor),
+                      keyboardType: TextInputType.text,
+                      decoration: _inputDecoration('Enter Phone or Email'),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Phone or email is required';
+                        }
+                        final trimmed = value.trim();
+                        if (trimmed.contains('@')) {
+                          // Validate as email
+                          if (!_emailRegex.hasMatch(trimmed)) {
+                            return 'Enter a valid email address';
+                          }
+                        } else {
+                          // Validate as phone
+                          if (!_phoneRegex.hasMatch(trimmed)) {
+                            return 'Enter a valid phone number (9-10 digits)';
+                          }
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 20),
 
-                  const SizedBox(height: 20),
-
-                  _buildLabel('Phone or Email'),
-                  _buildTextField(
-                    _phoneEmailController,
-                    'Enter Phone or Email',
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  _buildLabel('Password'),
-                  _buildTextField(
-                    _passwordController,
-                    'Enter Password',
-                    isPassword: true,
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  SizedBox(
-                    width: double.infinity,
-                    height: 55,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _registerUser,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _btnColor,
-                        foregroundColor: Colors.white,
-                        elevation: 4,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
+                    _buildLabel('Password'),
+                    TextFormField(
+                      controller: _passwordController,
+                      obscureText: _obscurePassword,
+                      style: TextStyle(color: _labelColor),
+                      decoration: _inputDecoration(
+                        'Enter Password',
+                        isPassword: true,
+                      ).copyWith(
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                            color: _labelColor,
+                          ),
+                          onPressed:
+                              () => setState(
+                                () => _obscurePassword = !_obscurePassword,
+                              ),
                         ),
                       ),
-                      child:
-                          _isLoading
-                              ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
-                                ),
-                              )
-                              : const Text(
-                                'Register',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Password is required';
+                        }
+                        if (value.length < 6) {
+                          return 'Password must be at least 6 characters';
+                        }
+                        return null;
+                      },
                     ),
-                  ),
+                    const SizedBox(height: 20),
 
-                  const SizedBox(height: 20),
-
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Already have an account? ',
-                        style: TextStyle(color: _labelColor, fontSize: 15),
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const LoginScreen(),
-                            ),
-                          );
-                        },
-                        child: const Text(
-                          'Login',
-                          style: TextStyle(
-                            color: Colors.blue,
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
+                    SizedBox(
+                      width: double.infinity,
+                      height: 55,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _registerUser,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _btnColor,
+                          foregroundColor: Colors.white,
+                          elevation: 4,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
                           ),
                         ),
+                        child:
+                            _isLoading
+                                ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                                : const Text(
+                                  'Register',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 40),
-                ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Login link
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Already have an account? ',
+                          style: TextStyle(color: _labelColor, fontSize: 15),
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const LoginScreen(),
+                              ),
+                            );
+                          },
+                          child: const Text(
+                            'Login',
+                            style: TextStyle(
+                              color: Colors.blue,
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 40),
+                  ],
+                ),
               ),
             ),
           ),
@@ -163,85 +222,59 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  Widget _buildTextField(
-    TextEditingController controller,
-    String hint, {
-    bool isPassword = false,
-  }) {
-    return TextField(
-      controller: controller,
-      obscureText: isPassword ? _obscurePassword : false,
-      style: TextStyle(color: _labelColor),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: TextStyle(color: _labelColor.withOpacity(0.5)),
-        filled: true,
-        fillColor: Colors.transparent,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 10,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(30),
-          borderSide: BorderSide(color: _labelColor, width: 1),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(30),
-          borderSide: BorderSide(color: _labelColor, width: 2),
-        ),
-        suffixIcon:
-            isPassword
-                ? IconButton(
-                  icon: Icon(
-                    _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                    color: _labelColor,
-                  ),
-                  onPressed:
-                      () =>
-                          setState(() => _obscurePassword = !_obscurePassword),
-                )
-                : null,
+  InputDecoration _inputDecoration(String hint, {bool isPassword = false}) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: TextStyle(color: _labelColor.withOpacity(0.5)),
+      filled: true,
+      fillColor: Colors.transparent,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(30),
+        borderSide: BorderSide(color: _labelColor, width: 1),
       ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(30),
+        borderSide: BorderSide(color: _labelColor, width: 2),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(30),
+        borderSide: const BorderSide(color: Colors.red, width: 1),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(30),
+        borderSide: const BorderSide(color: Colors.red, width: 2),
+      ),
+      errorStyle: const TextStyle(color: Colors.red, fontSize: 12),
     );
   }
 
   // ================ LOGIC METHODS ================
 
   Future<void> _registerUser() async {
-    if (_usernameController.text.isEmpty ||
-        _phoneEmailController.text.isEmpty ||
-        _passwordController.text.isEmpty) {
-      _showError('Please fill all fields');
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
-      // Check if input is email or phone
       final contact = _phoneEmailController.text.trim();
       final isEmail = contact.contains('@');
 
-      // Call your MockApiService.register() method
       final user = await MockApiService.register(
-        _usernameController.text.trim(), // username
-        isEmail ? contact : '', // email (if email)
-        isEmail ? '' : contact, // phone (if phone)
-        _passwordController.text, // password
-        '', // address (empty for now)
+        _usernameController.text.trim(),
+        isEmail ? contact : '',
+        isEmail ? '' : contact,
+        _passwordController.text,
+        '',
       );
 
-      // Save user to session
       await UserSession.saveUser(user.id, user.username, user.email);
-
-      // Set userId in OrderProvider
       if (mounted) {
         Provider.of<OrderProvider>(context, listen: false).setUserId(user.id);
       }
 
       _showSuccess('✅ Registration successful!');
 
-      // Navigate to home after delay
       Future.delayed(const Duration(seconds: 1), () {
         if (mounted) {
           Navigator.pushAndRemoveUntil(
@@ -255,7 +288,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       print('Registration error: $e');
       _showError('Registration failed: $e');
 
-      // Fallback to local registration
       final localUserId = DateTime.now().millisecondsSinceEpoch.toString();
       await UserSession.saveUser(
         localUserId,
@@ -282,9 +314,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         }
       });
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

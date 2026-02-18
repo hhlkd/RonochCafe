@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import 'package:ronoch_coffee/provider/product_provider.dart';
 import 'package:ronoch_coffee/provider/user_provider.dart';
 import 'package:ronoch_coffee/screens/auth/welcome_screen.dart';
+import 'package:ronoch_coffee/screens/home_screen.dart';
+import 'package:ronoch_coffee/services/user_session.dart';
 
 class SplashScreen extends StatefulWidget {
   @override
@@ -31,7 +33,6 @@ class _SplashScreenState extends State<SplashScreen>
       vsync: this,
     );
 
-    // Animations setup (same as before)
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
@@ -70,7 +71,6 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
 
-    // Start animation
     _controller.forward().then((_) {
       setState(() {
         _animationCompleted = true;
@@ -78,14 +78,12 @@ class _SplashScreenState extends State<SplashScreen>
       _checkAndNavigate();
     });
 
-    // Load products and user session in background
     _loadProducts();
     _loadUserSession();
   }
 
   Future<void> _loadProducts() async {
     try {
-      // Get ProductProvider from context
       final productProvider = Provider.of<ProductProvider>(
         context,
         listen: false,
@@ -100,7 +98,6 @@ class _SplashScreenState extends State<SplashScreen>
       _checkAndNavigate();
     } catch (e) {
       print('Error loading products: $e');
-      // Even if products fail, still navigate after animation
       setState(() {
         _productsLoaded = true;
       });
@@ -110,7 +107,6 @@ class _SplashScreenState extends State<SplashScreen>
 
   Future<void> _loadUserSession() async {
     try {
-      // Get UserProvider from context
       final userProvider = Provider.of<UserProvider>(context, listen: false);
 
       await userProvider.loadUserFromSession();
@@ -119,15 +115,26 @@ class _SplashScreenState extends State<SplashScreen>
     }
   }
 
-  void _checkAndNavigate() {
-    // Only navigate when both animation is complete AND products are loaded
+  Future<void> _checkAndNavigate() async {
     if (_animationCompleted && _productsLoaded && mounted) {
-      Future.delayed(const Duration(milliseconds: 500), () {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const WelcomeScreen()),
-        );
-      });
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (mounted) {
+        final isLoggedIn = await UserSession.isLoggedIn();
+
+        if (isLoggedIn) {
+          print('✅ User already logged in - navigating to HomeScreen');
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+          );
+        } else {
+          print('👤 User not logged in - navigating to WelcomeScreen');
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+          );
+        }
+      }
     }
   }
 
@@ -142,7 +149,6 @@ class _SplashScreenState extends State<SplashScreen>
             opacity: _fadeAnimation,
             child: Stack(
               children: [
-                // Coffee beans background animation
                 Positioned.fill(
                   child: CustomPaint(
                     painter: CoffeeBeansPainter(animation: _controller),
@@ -153,7 +159,6 @@ class _SplashScreenState extends State<SplashScreen>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Animated coffee cup with steam
                       Stack(
                         alignment: Alignment.center,
                         children: [
@@ -189,7 +194,6 @@ class _SplashScreenState extends State<SplashScreen>
                             ),
                           ),
 
-                          // Steam animation
                           if (_steamAnimation.value > 0)
                             Positioned(
                               top: -40,
@@ -216,8 +220,6 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
 
                       const SizedBox(height: 40),
-
-                      // Main title with fade and scale
                       FadeTransition(
                         opacity: _textFadeAnimation,
                         child: ScaleTransition(
@@ -257,8 +259,6 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
 
                       const SizedBox(height: 20),
-
-                      // Tagline with slide animation
                       SlideTransition(
                         position: _slideAnimation,
                         child: FadeTransition(
@@ -276,8 +276,6 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
 
                       const SizedBox(height: 40),
-
-                      // Loading indicator with product loading status
                       FadeTransition(
                         opacity: Tween<double>(begin: 0.0, end: 1.0).animate(
                           CurvedAnimation(
@@ -345,8 +343,6 @@ class _SplashScreenState extends State<SplashScreen>
                     ],
                   ),
                 ),
-
-                // Copyright text at bottom
                 Positioned(
                   bottom: 30,
                   left: 0,
@@ -387,7 +383,6 @@ class _SplashScreenState extends State<SplashScreen>
   }
 }
 
-// Custom painter for coffee beans background animation
 class CoffeeBeansPainter extends CustomPainter {
   final Animation<double> animation;
 
@@ -395,14 +390,12 @@ class CoffeeBeansPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Draw floating coffee beans
     for (int i = 0; i < 15; i++) {
       final beanX = (size.width / 15) * i;
       final beanY =
           size.height *
           (0.5 + 0.4 * math.sin(animation.value * 2 * math.pi + i * 0.5));
 
-      // Animate beans appearance
       final beanOpacity = math.min(
         1.0,
         (animation.value - (i * 0.05)).clamp(0.0, 1.0) * 0.1,
@@ -414,7 +407,6 @@ class CoffeeBeansPainter extends CustomPainter {
               ..color = Colors.white.withOpacity(beanOpacity)
               ..style = PaintingStyle.fill;
 
-        // Draw coffee bean shape (simple oval)
         canvas.drawOval(
           Rect.fromCenter(center: Offset(beanX, beanY), width: 30, height: 15),
           beanPaint,

@@ -20,6 +20,7 @@ dependencies:
   awesome_snackbar_content: ^0.1.1
   splash_master: ^0.0.3
   image_picker: ^1.0.7
+  focus_detector: ^2.0.1
   
   geolocator: ^10.1.0
   geocoding: ^2.1.1

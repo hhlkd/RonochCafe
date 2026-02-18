@@ -38,15 +38,16 @@ class _AccountScreenState extends State<AccountScreen> {
 
   Future<void> _loadUserAndData() async {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final rewardProvider = Provider.of<RewardProvider>(context, listen: false);
 
-    // Ensure user is loaded from session
     if (userProvider.currentUser == null) {
       await userProvider.loadUserFromSession();
     }
 
-    // Now load user-specific data
     _checkUserStatusAndLoadImage();
     _loadRedemptions();
+
+    await rewardProvider.fetchRewards();
   }
 
   Future<void> _checkUserStatusAndLoadImage() async {
@@ -67,25 +68,33 @@ class _AccountScreenState extends State<AccountScreen> {
     }
   }
 
-  // ✅ CORRECT - With mounted check
   Future<void> _loadLocalProfileImage(String userId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final imagePath = prefs.getString('profile_image_$userId');
 
-      if (imagePath != null) {
-        final file = File(imagePath);
-        if (await file.exists()) {
-          if (mounted) {
-            // ✅ Check mounted
-            setState(() {
-              _imageFile = file;
-            });
+      if (imagePath != null && imagePath.isNotEmpty) {
+        try {
+          final file = File(imagePath);
+          if (await file.exists()) {
+            if (mounted) {
+              setState(() {
+                _imageFile = file;
+              });
+            }
+          } else {
+            await prefs.remove('profile_image_$userId');
+            print('⚠️ Profile image file not found, cleared from storage');
+            if (mounted) {
+              setState(() {
+                _imageFile = null;
+              });
+            }
           }
-        } else {
+        } catch (e) {
+          print('⚠️ Invalid profile image path: $e');
           await prefs.remove('profile_image_$userId');
           if (mounted) {
-            // ✅ Check mounted
             setState(() {
               _imageFile = null;
             });
@@ -93,7 +102,6 @@ class _AccountScreenState extends State<AccountScreen> {
         }
       } else {
         if (mounted) {
-          // ✅ Check mounted
           setState(() {
             _imageFile = null;
           });
@@ -102,7 +110,6 @@ class _AccountScreenState extends State<AccountScreen> {
     } catch (e) {
       print('Error loading local image: $e');
       if (mounted) {
-        // ✅ Check mounted
         setState(() {
           _imageFile = null;
         });
@@ -136,6 +143,12 @@ class _AccountScreenState extends State<AccountScreen> {
     } catch (e) {
       setState(() => _loadingRedemptions = false);
     }
+  }
+
+  Future<void> _loadRewardsData() async {
+    final rewardProvider = Provider.of<RewardProvider>(context, listen: false);
+    print('🔄 Loading rewards for rewards tab...');
+    await rewardProvider.fetchRewards();
   }
 
   Future<void> _pickImage() async {
@@ -431,13 +444,9 @@ class _AccountScreenState extends State<AccountScreen> {
       ),
       body: Column(
         children: [
-          // Profile Header
           _buildProfileHeader(user),
-
-          // Tabs
           _buildTabBar(),
 
-          // Content
           Expanded(
             child:
                 _selectedTab == 0
@@ -458,7 +467,6 @@ class _AccountScreenState extends State<AccountScreen> {
       ),
       child: Column(
         children: [
-          // Profile Image
           GestureDetector(
             onTap: _pickImage,
             child: Stack(
@@ -542,7 +550,6 @@ class _AccountScreenState extends State<AccountScreen> {
 
           const SizedBox(height: 10),
 
-          // Points Card
           _buildPointsCard(user.point),
         ],
       ),
@@ -556,21 +563,34 @@ class _AccountScreenState extends State<AccountScreen> {
       ),
       child: Row(
         children: [
-          _buildTabButton(0, Icons.card_giftcard, 'Rewards'),
+          _buildTabButton(
+            0,
+            Icons.card_giftcard,
+            'Rewards',
+            onTab: _loadRewardsData,
+          ),
           _buildTabButton(1, Icons.history, 'History'),
         ],
       ),
     );
   }
 
-  Widget _buildTabButton(int tabIndex, IconData icon, String label) {
+  Widget _buildTabButton(
+    int tabIndex,
+    IconData icon,
+    String label, {
+    VoidCallback? onTab,
+  }) {
     final isSelected = _selectedTab == tabIndex;
 
     return Expanded(
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => setState(() => _selectedTab = tabIndex),
+          onTap: () {
+            setState(() => _selectedTab = tabIndex);
+            onTab?.call();
+          },
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 15),
             decoration: BoxDecoration(
@@ -617,7 +637,6 @@ class _AccountScreenState extends State<AccountScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
             const Text(
               "Redeem Rewards",
               style: TextStyle(
@@ -634,7 +653,6 @@ class _AccountScreenState extends State<AccountScreen> {
 
             const SizedBox(height: 20),
 
-            // Rewards Grid
             _buildRewardsGrid(rewardProvider, user),
           ],
         ),
@@ -724,7 +742,6 @@ class _AccountScreenState extends State<AccountScreen> {
         children: [
           Row(
             children: [
-              // Reward Image
               Container(
                 width: 60,
                 height: 60,
@@ -767,7 +784,6 @@ class _AccountScreenState extends State<AccountScreen> {
 
               const SizedBox(width: 16),
 
-              // Details
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -785,7 +801,6 @@ class _AccountScreenState extends State<AccountScreen> {
 
                     const SizedBox(height: 8),
 
-                    // Status and Date
                     Row(
                       children: [
                         Container(
@@ -831,7 +846,6 @@ class _AccountScreenState extends State<AccountScreen> {
 
                     const SizedBox(height: 8),
 
-                    // Redemption Code
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
@@ -880,7 +894,6 @@ class _AccountScreenState extends State<AccountScreen> {
                 ),
               ),
 
-              // Points
               Column(
                 children: [
                   Container(
@@ -966,7 +979,6 @@ class _AccountScreenState extends State<AccountScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          // Delete button
           Align(
             alignment: Alignment.centerRight,
             child: TextButton.icon(
@@ -1024,7 +1036,6 @@ class _AccountScreenState extends State<AccountScreen> {
         (r) => r.redemptionCode == redemption.redemptionCode,
       );
 
-      // Update SharedPreferences
       if (_currentUserId != null) {
         final prefs = await SharedPreferences.getInstance();
         final key = 'user_redemptions_$_currentUserId';
@@ -1035,7 +1046,6 @@ class _AccountScreenState extends State<AccountScreen> {
 
       setState(() {});
 
-      // Show success message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1057,13 +1067,9 @@ class _AccountScreenState extends State<AccountScreen> {
     }
   }
 
-  // ✅ ក្នុង _buildPointsCard() method ដ940
-
   Widget _buildPointsCard(int points) {
-    // ✅ ប្រើ Consumer ដើម្បីស្តាប់ សម្រាប់ Reward Provider updates
     return Consumer<RewardProvider>(
       builder: (context, rewardProvider, child) {
-        // Use provider's user points if available
         final displayPoints =
             rewardProvider.userPoints > 0 ? rewardProvider.userPoints : points;
 
@@ -1127,7 +1133,7 @@ class _AccountScreenState extends State<AccountScreen> {
                   border: Border.all(color: Colors.white.withOpacity(0.3)),
                 ),
                 child: Text(
-                  displayPoints.toString(), // ✅ Display latest points
+                  displayPoints.toString(),
                   style: const TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.bold,
@@ -1251,7 +1257,6 @@ class _AccountScreenState extends State<AccountScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Product Image
             Expanded(
               child: Container(
                 padding: const EdgeInsets.all(15),
@@ -1274,7 +1279,6 @@ class _AccountScreenState extends State<AccountScreen> {
               ),
             ),
 
-            // Product Details
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -1374,7 +1378,6 @@ class _AccountScreenState extends State<AccountScreen> {
       return;
     }
 
-    // Generate a preview code to show in the confirmation dialog
     final previewCode = _generateRedemptionCode();
 
     final result = await showDialog<String?>(
@@ -1453,7 +1456,6 @@ class _AccountScreenState extends State<AccountScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  // Preview code box
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -1523,7 +1525,6 @@ class _AccountScreenState extends State<AccountScreen> {
     Provider.of<RewardProvider>(context, listen: false);
 
     try {
-      // Show loading
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -1539,10 +1540,8 @@ class _AccountScreenState extends State<AccountScreen> {
             ),
       );
 
-      // Use provided redemption code if given, otherwise generate one
       final code = redemptionCode ?? _generateRedemptionCode();
 
-      // Create redemption record
       final redemptionRecord = RedemptionRecord(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         userId: user.id,
@@ -1557,25 +1556,19 @@ class _AccountScreenState extends State<AccountScreen> {
         pickupLocation: 'Ronoch Café, Phnom Penh, Cambodia',
       );
 
-      // Save redemption locally
       final prefs = await SharedPreferences.getInstance();
       final redemptions =
           prefs.getStringList('user_redemptions_${user.id}') ?? [];
       redemptions.add(jsonEncode(redemptionRecord.toJson()));
       await prefs.setStringList('user_redemptions_${user.id}', redemptions);
 
-      // Update user points
       final newPoints = user.point - reward.point;
       final updatedUser = user.copyWith(point: newPoints);
       await userProvider.updateProfile(updatedUser);
 
-      // Close loading dialog
       Navigator.pop(context);
 
-      // Show success with redemption code
       await _showRedemptionSuccess(reward, code, userProvider);
-
-      // Reload redemptions
       await _loadRedemptions();
     } catch (e) {
       if (mounted) {
@@ -1603,7 +1596,6 @@ class _AccountScreenState extends State<AccountScreen> {
     if (user == null) return;
 
     try {
-      // Find and update the redemption
       final index = _redemptions.indexWhere((r) => r.id == redemption.id);
       if (index != -1) {
         final updated = redemption.copyWith(
@@ -1612,17 +1604,14 @@ class _AccountScreenState extends State<AccountScreen> {
           collectedBy: 'User',
         );
 
-        // Update local state
         setState(() {
           _redemptions[index] = updated;
         });
 
-        // Save to SharedPreferences
         final prefs = await SharedPreferences.getInstance();
         final data = _redemptions.map((r) => jsonEncode(r.toJson())).toList();
         await prefs.setStringList('user_redemptions_${user.id}', data);
 
-        // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Reward marked as collected!'),
@@ -1783,7 +1772,6 @@ class _AccountScreenState extends State<AccountScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  // Code Text
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
@@ -1877,9 +1865,21 @@ class _AccountScreenState extends State<AccountScreen> {
   }
 
   ImageProvider? _getProfileImage(User user) {
-    if (_imageFile != null) {
-      return FileImage(_imageFile!);
+    try {
+      if (_imageFile != null) {
+        // Verify file still exists before returning
+        if (_imageFile!.existsSync()) {
+          return FileImage(_imageFile!);
+        } else {
+          // File was deleted, clear it
+          _imageFile = null;
+        }
+      }
+    } catch (e) {
+      print('Error getting file image: $e');
+      _imageFile = null;
     }
+
     if (user.profileImage.isNotEmpty && user.profileImage.startsWith('http')) {
       return NetworkImage(user.profileImage);
     }
