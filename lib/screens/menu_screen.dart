@@ -31,25 +31,19 @@ class _MenuScreenState extends State<MenuScreen> {
     if (lower.contains('noodle')) return 'Noodle';
     if (lower.contains('snack')) return 'Snack';
 
-    // Capitalize first letter
     return category.isNotEmpty
         ? '${category[0].toUpperCase()}${category.substring(1)}'
         : category;
   }
 
-  // Group products for display - UPDATED
   Map<String, List<Product>> _groupProducts(List<Product> filtered) {
     final Map<String, List<Product>> groups = {};
 
     if (_selectedCategory == 'All') {
-      // ONLY show featured sections when "All" is selected
-
-      // 1. Popular Drink
       final popDrinks =
           filtered.where((p) => p.section == 'Popular Drink').toList();
       if (popDrinks.isNotEmpty) groups['Popular Drink'] = popDrinks;
 
-      // 2. Popular Pastries
       final popPastries =
           filtered
               .where(
@@ -61,7 +55,6 @@ class _MenuScreenState extends State<MenuScreen> {
               .toList();
       if (popPastries.isNotEmpty) groups['Popular Pastries'] = popPastries;
 
-      // 3. Promotion Drink
       final promoDrinks =
           filtered
               .where(
@@ -73,12 +66,10 @@ class _MenuScreenState extends State<MenuScreen> {
               .toList();
       if (promoDrinks.isNotEmpty) groups['Promotion Drink'] = promoDrinks;
 
-      // 4. Remove already displayed items
       final displayedItems = [...popDrinks, ...popPastries, ...promoDrinks];
       final remainingItems =
           filtered.where((p) => !displayedItems.contains(p)).toList();
 
-      // 5. Noodle & Snack section ONLY
       final noodleSnackItems =
           remainingItems
               .where(
@@ -90,11 +81,7 @@ class _MenuScreenState extends State<MenuScreen> {
       if (noodleSnackItems.isNotEmpty) {
         groups['Noodle & Snack'] = noodleSnackItems;
       }
-
-      // DO NOT show other categories when "All" is selected
-      // Tea, Coffee, Pastries will only show when their category is clicked
     } else {
-      // Single category selected - show ALL products in that category
       final categoryName = _formatCategoryName(_selectedCategory);
       groups[categoryName] = filtered;
     }
@@ -110,7 +97,6 @@ class _MenuScreenState extends State<MenuScreen> {
     final List<Product> allProducts = productProvider.products;
     final bool isLoading = productProvider.isLoading;
 
-    // Filter products based on search and category
     List<Product> filteredProducts = allProducts;
 
     if (_selectedCategory != 'All') {
@@ -140,7 +126,6 @@ class _MenuScreenState extends State<MenuScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
             Container(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 15),
               child: Column(
@@ -156,10 +141,8 @@ class _MenuScreenState extends State<MenuScreen> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      // Right side icons (Order History and Cart)
                       Row(
                         children: [
-                          // Order History Icon
                           IconButton(
                             onPressed: () {
                               Navigator.pushNamed(context, '/history');
@@ -167,7 +150,6 @@ class _MenuScreenState extends State<MenuScreen> {
                             icon: const Icon(Icons.history_outlined, size: 28),
                             tooltip: 'Order History',
                           ),
-                          // Cart icon with badge
                           Stack(
                             children: [
                               IconButton(
@@ -232,7 +214,6 @@ class _MenuScreenState extends State<MenuScreen> {
               ),
             ),
 
-            // Categories Section
             Container(
               padding: const EdgeInsets.only(left: 20, right: 20, bottom: 15),
               child: Column(
@@ -260,7 +241,6 @@ class _MenuScreenState extends State<MenuScreen> {
               ),
             ),
 
-            // Products Section
             Expanded(
               child:
                   isLoading
@@ -301,7 +281,6 @@ class _MenuScreenState extends State<MenuScreen> {
   }
 
   Widget _buildCategoryItem(String category, bool isSelected) {
-    // Icon mapping with correct paths
     final iconMap = {
       'all': 'assets/Icons/all-icon.png',
       'coffee': 'assets/Icons/coffe-icon.png',
@@ -383,7 +362,6 @@ class _MenuScreenState extends State<MenuScreen> {
     Map<String, List<Product>> groupedProducts,
     BuildContext context,
   ) {
-    // When "All" is selected, only show featured sections in this order
     const List<String> featuredSectionOrder = [
       'Popular Drink',
       'Popular Pastries',
@@ -393,7 +371,6 @@ class _MenuScreenState extends State<MenuScreen> {
 
     final List<Widget> sections = [];
 
-    // Add featured sections in order if they exist
     for (var sectionTitle in featuredSectionOrder) {
       if (groupedProducts.containsKey(sectionTitle) &&
           groupedProducts[sectionTitle]!.isNotEmpty) {
@@ -418,7 +395,6 @@ class _MenuScreenState extends State<MenuScreen> {
     List<Product> products,
     BuildContext context,
   ) {
-    // ALL featured sections use horizontal scroll when "All" is selected
     return Container(
       margin: const EdgeInsets.only(bottom: 25),
       child: Column(
@@ -437,7 +413,6 @@ class _MenuScreenState extends State<MenuScreen> {
           ),
           const SizedBox(height: 15),
 
-          // Horizontal scroll for ALL featured sections
           SizedBox(
             height: 260,
             child: ListView.builder(
@@ -469,13 +444,10 @@ class _MenuScreenState extends State<MenuScreen> {
   }
 
   Widget _buildCategoryGridView(List<Product> products, BuildContext context) {
-    // Check if this is a combined "Noodle & Snack" category
     final isNoodleSnack =
         _selectedCategory.toLowerCase().contains('noodle') &&
         _selectedCategory.toLowerCase().contains('snack');
 
-    // If it's a single category (like Tea, Coffee, Noodle, or Snack), use 2-column grid
-    // If it's combined "Noodle & Snack", also use 2-column grid
     final useGrid =
         !isNoodleSnack ||
         (_selectedCategory.toLowerCase().contains('noodle') &&
@@ -484,7 +456,6 @@ class _MenuScreenState extends State<MenuScreen> {
     if (useGrid) {
       return CustomScrollView(
         slivers: [
-          // Category header
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 15),
@@ -499,7 +470,6 @@ class _MenuScreenState extends State<MenuScreen> {
             ),
           ),
 
-          // Product grid (2 columns)
           SliverPadding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             sliver: SliverGrid(
@@ -524,13 +494,10 @@ class _MenuScreenState extends State<MenuScreen> {
               }, childCount: products.length),
             ),
           ),
-
-          // Add some bottom padding
           const SliverToBoxAdapter(child: SizedBox(height: 20)),
         ],
       );
     } else {
-      // If for some reason we need horizontal scroll for a specific category
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

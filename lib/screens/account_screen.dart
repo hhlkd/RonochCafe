@@ -1,11 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:focus_detector/focus_detector.dart';
 import 'package:ronoch_coffee/models/reward_item_model.dart';
 import 'package:ronoch_coffee/models/user_model.dart';
 import 'package:ronoch_coffee/provider/reward_provider.dart';
@@ -23,7 +22,7 @@ class AccountScreen extends StatefulWidget {
 }
 
 class _AccountScreenState extends State<AccountScreen> {
-  File? _imageFile;
+  String? _profileImageBase64;
   String? _currentUserId;
   bool _isRedeeming = false;
   List<RedemptionRecord> _redemptions = [];
@@ -38,7 +37,6 @@ class _AccountScreenState extends State<AccountScreen> {
 
   Future<void> _loadUserAndData() async {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final rewardProvider = Provider.of<RewardProvider>(context, listen: false);
 
     if (userProvider.currentUser == null) {
       await userProvider.loadUserFromSession();
@@ -47,7 +45,10 @@ class _AccountScreenState extends State<AccountScreen> {
     _checkUserStatusAndLoadImage();
     _loadRedemptions();
 
-    await rewardProvider.fetchRewards();
+    final rewardProvider = Provider.of<RewardProvider>(context, listen: false);
+    if (rewardProvider.rewards.isEmpty) {
+      rewardProvider.fetchRewards();
+    }
   }
 
   Future<void> _checkUserStatusAndLoadImage() async {
@@ -56,7 +57,7 @@ class _AccountScreenState extends State<AccountScreen> {
 
     if (user == null) {
       setState(() {
-        _imageFile = null;
+        _profileImageBase64 = null;
         _currentUserId = null;
       });
       return;
@@ -71,47 +72,18 @@ class _AccountScreenState extends State<AccountScreen> {
   Future<void> _loadLocalProfileImage(String userId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final imagePath = prefs.getString('profile_image_$userId');
+      final base64String = prefs.getString('profile_image_$userId');
 
-      if (imagePath != null && imagePath.isNotEmpty) {
-        try {
-          final file = File(imagePath);
-          if (await file.exists()) {
-            if (mounted) {
-              setState(() {
-                _imageFile = file;
-              });
-            }
-          } else {
-            await prefs.remove('profile_image_$userId');
-            print('⚠️ Profile image file not found, cleared from storage');
-            if (mounted) {
-              setState(() {
-                _imageFile = null;
-              });
-            }
-          }
-        } catch (e) {
-          print('⚠️ Invalid profile image path: $e');
-          await prefs.remove('profile_image_$userId');
-          if (mounted) {
-            setState(() {
-              _imageFile = null;
-            });
-          }
-        }
-      } else {
-        if (mounted) {
-          setState(() {
-            _imageFile = null;
-          });
-        }
+      if (mounted) {
+        setState(() {
+          _profileImageBase64 = base64String;
+        });
       }
     } catch (e) {
       print('Error loading local image: $e');
       if (mounted) {
         setState(() {
-          _imageFile = null;
+          _profileImageBase64 = null;
         });
       }
     }
@@ -145,12 +117,6 @@ class _AccountScreenState extends State<AccountScreen> {
     }
   }
 
-  Future<void> _loadRewardsData() async {
-    final rewardProvider = Provider.of<RewardProvider>(context, listen: false);
-    print('🔄 Loading rewards for rewards tab...');
-    await rewardProvider.fetchRewards();
-  }
-
   Future<void> _pickImage() async {
     try {
       final picker = ImagePicker();
@@ -161,7 +127,6 @@ class _AccountScreenState extends State<AccountScreen> {
       );
 
       if (pickedFile != null) {
-        final imageFile = File(pickedFile.path);
         final userProvider = Provider.of<UserProvider>(context, listen: false);
         final user = userProvider.currentUser;
 
@@ -173,26 +138,26 @@ class _AccountScreenState extends State<AccountScreen> {
             ),
           );
 
-          final savedPath = await _saveImageLocally(imageFile, user.id);
+          final bytes = await pickedFile.readAsBytes();
+          final base64String = base64Encode(bytes);
 
-          if (savedPath != null) {
-            setState(() {
-              _imageFile = File(savedPath);
-            });
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('profile_image_${user.id}', base64String);
 
-            final avatarUrl =
-                'https://ui-avatars.com/api/?name=${Uri.encodeComponent(user.username)}&background=B08968&color=fff&size=200';
+          setState(() {
+            _profileImageBase64 = base64String;
+          });
+          final avatarUrl =
+              'https://ui-avatars.com/api/?name=${Uri.encodeComponent(user.username)}&background=B08968&color=fff&size=200';
+          final updatedUser = user.copyWith(profileImage: avatarUrl);
+          await userProvider.updateProfile(updatedUser);
 
-            final updatedUser = user.copyWith(profileImage: avatarUrl);
-            await userProvider.updateProfile(updatedUser);
-
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Profile image updated!'),
-                backgroundColor: Colors.green,
-              ),
-            );
-          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Profile image updated!'),
+              backgroundColor: Colors.green,
+            ),
+          );
         }
       }
     } catch (e) {
@@ -203,52 +168,6 @@ class _AccountScreenState extends State<AccountScreen> {
         ),
       );
     }
-  }
-
-  Future<String?> _saveImageLocally(File imageFile, String userId) async {
-    try {
-      final appDir = await getApplicationDocumentsDirectory();
-      final profileDir = Directory('${appDir.path}/profile_images');
-
-      if (!await profileDir.exists()) {
-        await profileDir.create(recursive: true);
-      }
-
-      await _cleanupOldImages(profileDir, userId);
-
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final fileName = 'profile_${userId}_$timestamp.jpg';
-      final newPath = '${profileDir.path}/$fileName';
-
-      await imageFile.copy(newPath);
-
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('profile_image_$userId', newPath);
-
-      return newPath;
-    } catch (e) {
-      return null;
-    }
-  }
-
-  Future<void> _cleanupOldImages(Directory profileDir, String userId) async {
-    try {
-      final files = await profileDir.list().toList();
-      for (var file in files) {
-        if (file is File) {
-          final fileName = file.path.split('/').last;
-          if (fileName.startsWith('profile_${userId}_')) {
-            await file.delete();
-          }
-        }
-      }
-    } catch (e) {
-      print('Error cleaning up old images: $e');
-    }
-  }
-
-  Future<Directory> getApplicationDocumentsDirectory() async {
-    return await getApplicationSupportDirectory();
   }
 
   @override
@@ -432,7 +351,7 @@ class _AccountScreenState extends State<AccountScreen> {
                 final prefs = await SharedPreferences.getInstance();
                 await prefs.remove('profile_image_${user.id}');
                 setState(() {
-                  _imageFile = null;
+                  _profileImageBase64 = null;
                   _currentUserId = null;
                 });
                 await userProvider.logout();
@@ -442,18 +361,26 @@ class _AccountScreenState extends State<AccountScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          _buildProfileHeader(user),
-          _buildTabBar(),
-
-          Expanded(
-            child:
-                _selectedTab == 0
-                    ? _buildRewardsContent(rewardProvider, user)
-                    : _buildRedemptionHistoryContent(),
-          ),
-        ],
+      body: FocusDetector(
+        onFocusGained: () async {
+          final user = userProvider.currentUser;
+          if (user != null) {
+            await userProvider.refreshUser();
+            await _loadLocalProfileImage(user.id);
+          }
+        },
+        child: Column(
+          children: [
+            _buildProfileHeader(user),
+            _buildTabBar(),
+            Expanded(
+              child:
+                  _selectedTab == 0
+                      ? _buildRewardsContent(rewardProvider, user)
+                      : _buildRedemptionHistoryContent(),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -503,7 +430,6 @@ class _AccountScreenState extends State<AccountScreen> {
               ],
             ),
           ),
-
           const SizedBox(height: 15),
           Column(
             children: [
@@ -547,10 +473,84 @@ class _AccountScreenState extends State<AccountScreen> {
               ),
             ],
           ),
-
           const SizedBox(height: 10),
+          Consumer<UserProvider>(
+            builder: (context, userProvider, child) {
+              final user = userProvider.currentUser!;
+              return _buildPointsCard(user.point);
+            },
+          ),
+        ],
+      ),
+    );
+  }
 
-          _buildPointsCard(user.point),
+  Widget _buildPointsCard(int points) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFB08968), Color(0xFF8B6B4D)],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFB08968).withOpacity(0.3),
+            blurRadius: 15,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Ronoch Café",
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  "When Life Hurt, Coffee Heals!",
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white70,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  "Points Balance",
+                  style: TextStyle(fontSize: 13, color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.white.withOpacity(0.3)),
+            ),
+            child: Text(
+              points.toString(),
+              style: const TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -563,34 +563,21 @@ class _AccountScreenState extends State<AccountScreen> {
       ),
       child: Row(
         children: [
-          _buildTabButton(
-            0,
-            Icons.card_giftcard,
-            'Rewards',
-            onTab: _loadRewardsData,
-          ),
+          _buildTabButton(0, Icons.card_giftcard, 'Rewards'),
           _buildTabButton(1, Icons.history, 'History'),
         ],
       ),
     );
   }
 
-  Widget _buildTabButton(
-    int tabIndex,
-    IconData icon,
-    String label, {
-    VoidCallback? onTab,
-  }) {
+  Widget _buildTabButton(int tabIndex, IconData icon, String label) {
     final isSelected = _selectedTab == tabIndex;
 
     return Expanded(
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () {
-            setState(() => _selectedTab = tabIndex);
-            onTab?.call();
-          },
+          onTap: () => setState(() => _selectedTab = tabIndex),
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 15),
             decoration: BoxDecoration(
@@ -650,9 +637,7 @@ class _AccountScreenState extends State<AccountScreen> {
               "Earn points by ordering and redeem them for exclusive items",
               style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
             ),
-
             const SizedBox(height: 20),
-
             _buildRewardsGrid(rewardProvider, user),
           ],
         ),
@@ -781,9 +766,7 @@ class _AccountScreenState extends State<AccountScreen> {
                           ),
                         ),
               ),
-
               const SizedBox(width: 16),
-
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -798,9 +781,7 @@ class _AccountScreenState extends State<AccountScreen> {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-
                     const SizedBox(height: 8),
-
                     Row(
                       children: [
                         Container(
@@ -825,9 +806,7 @@ class _AccountScreenState extends State<AccountScreen> {
                             ),
                           ),
                         ),
-
                         const SizedBox(width: 8),
-
                         Icon(
                           Icons.calendar_today,
                           size: 12,
@@ -843,9 +822,7 @@ class _AccountScreenState extends State<AccountScreen> {
                         ),
                       ],
                     ),
-
                     const SizedBox(height: 8),
-
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
@@ -893,7 +870,6 @@ class _AccountScreenState extends State<AccountScreen> {
                   ],
                 ),
               ),
-
               Column(
                 children: [
                   Container(
@@ -921,9 +897,7 @@ class _AccountScreenState extends State<AccountScreen> {
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 8),
-
                   if (redemption.isUsed)
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -996,37 +970,373 @@ class _AccountScreenState extends State<AccountScreen> {
     );
   }
 
+
   void _showDeleteConfirmDialog(RedemptionRecord redemption) {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Clear Reward Item?'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Are you sure you want to remove "${redemption.rewardName}" from your history?',
-                style: const TextStyle(color: Colors.black87),
+      builder:
+          (context) => Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.warning_amber_rounded,
+                    size: 60,
+                    color: Colors.red,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Clear Item',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Are you sure you want to remove "${redemption.rewardName}" from your history?',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 16, color: Colors.black87),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.grey),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: const Text(
+                            'Cancel',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _deleteRedemption(redemption);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: const Text(
+                            'Delete',
+                            style: TextStyle(fontSize: 16, color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+    );
+  }
+
+  Future<void> _showRedemptionSuccess(
+    RewardItem reward,
+    String code,
+    UserProvider userProvider,
+  ) async {
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
             ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _deleteRedemption(redemption);
-              },
-              child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.green, size: 60),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Redemption Successful!',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    '🎉 Congratulations!',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    reward.name,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFB08968)),
+                    ),
+                    child: Column(
+                      children: [
+                        const Text(
+                          'Your Redemption Code',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          code,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                            letterSpacing: 2,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Save this code!',
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Bring this code to our café in Cambodia to claim your reward.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 14),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFB08968),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 40,
+                        vertical: 14,
+                      ),
+                    ),
+                    child: const Text(
+                      'Confirm ',
+                      style: TextStyle(fontSize: 16, color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ],
-        );
-      },
+          ),
+    );
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.error, color: Colors.red, size: 60),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Redemption Failed',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFB08968),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 40,
+                        vertical: 14,
+                      ),
+                    ),
+                    child: const Text(
+                      'OK',
+                      style: TextStyle(fontSize: 16, color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+    );
+  }
+
+  void _showQRCodeDialog(RedemptionRecord redemption) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Redemption QR Code',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 20),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: QrImageView(
+                      data: redemption.redemptionCode,
+                      version: QrVersions.auto,
+                      size: 200,
+                      backgroundColor: Colors.white,
+                      errorCorrectionLevel: QrErrorCorrectLevel.H,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Column(
+                      children: [
+                        const Text(
+                          'Redemption Code',
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          redemption.redemptionCode,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF4CAF50),
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          redemption.rewardName,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF2D2D2D),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Points: ${redemption.pointsUsed}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _getStatusColor(redemption).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                              color: _getStatusColor(redemption),
+                            ),
+                          ),
+                          child: Text(
+                            redemption.status.toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: _getStatusColor(redemption),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFB08968),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 40,
+                        vertical: 14,
+                      ),
+                    ),
+                    child: const Text(
+                      'Close',
+                      style: TextStyle(fontSize: 16, color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
     );
   }
 
@@ -1065,87 +1375,6 @@ class _AccountScreenState extends State<AccountScreen> {
         );
       }
     }
-  }
-
-  Widget _buildPointsCard(int points) {
-    return Consumer<RewardProvider>(
-      builder: (context, rewardProvider, child) {
-        final displayPoints =
-            rewardProvider.userPoints > 0 ? rewardProvider.userPoints : points;
-
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFFB08968), Color(0xFF8B6B4D)],
-            ),
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFFB08968).withOpacity(0.3),
-                blurRadius: 15,
-                spreadRadius: 2,
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Ronoch Café",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      "When Life Hurt, Coffee Heals!",
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.white70,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      "Points Balance",
-                      style: TextStyle(fontSize: 13, color: Colors.white),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.white.withOpacity(0.3)),
-                ),
-                child: Text(
-                  displayPoints.toString(),
-                  style: const TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
   }
 
   Color _getStatusColor(RedemptionRecord record) {
@@ -1278,7 +1507,6 @@ class _AccountScreenState extends State<AccountScreen> {
                         ),
               ),
             ),
-
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -1384,126 +1612,252 @@ class _AccountScreenState extends State<AccountScreen> {
       context: context,
       barrierDismissible: false,
       builder:
-          (context) => AlertDialog(
-            title: const Text("Confirm Redemption"),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    height: 100,
-                    width: 100,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(15),
-                      border: Border.all(
-                        color: const Color(0xFFB08968),
-                        width: 1,
+          (context) => Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+            ),
+            insetPadding: const EdgeInsets.symmetric(
+              horizontal: 24,
+              vertical: 32,
+            ),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.75,
+              ),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        height: 80,
+                        width: 80,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: const Color(0xFFB08968).withOpacity(0.3),
+                            width: 1.5,
+                          ),
+                        ),
+                        child:
+                            reward.imageUrl.isNotEmpty
+                                ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: Image.network(
+                                    reward.imageUrl,
+                                    fit: BoxFit.cover,
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            const Icon(
+                                              Icons.card_giftcard,
+                                              size: 40,
+                                              color: Color(0xFFB08968),
+                                            ),
+                                  ),
+                                )
+                                : const Icon(
+                                  Icons.card_giftcard,
+                                  size: 40,
+                                  color: Color(0xFFB08968),
+                                ),
                       ),
                     ),
-                    child:
-                        reward.imageUrl.isNotEmpty
-                            ? ClipRRect(
-                              borderRadius: BorderRadius.circular(14),
-                              child: Image.network(
-                                reward.imageUrl,
-                                fit: BoxFit.cover,
-                              ),
-                            )
-                            : const Icon(
-                              Icons.card_giftcard,
-                              size: 50,
-                              color: Color(0xFFB08968),
-                            ),
-                  ),
-                  const SizedBox(height: 15),
-                  Text(
-                    reward.name,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    "Cost: ${reward.point} points",
-                    style: TextStyle(fontSize: 16, color: Colors.grey.shade700),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    "Your balance: ${user.point} points",
-                    style: TextStyle(
-                      fontSize: 16,
-                      color:
-                          user.point >= reward.point
-                              ? Colors.green
-                              : Colors.red,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 15),
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFDE2CC),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Text(
-                      "You will receive a unique redemption code to pick up at our café in Cambodia!",
+                    const SizedBox(height: 12),
+
+                    Text(
+                      reward.name,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 12, color: Color(0xFF8B4513)),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: Column(
-                      children: [
-                        const Text(
-                          'Preview Redemption Code',
-                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                    const SizedBox(height: 8),
+                    Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
                         ),
-                        const SizedBox(height: 6),
-                        Text(
-                          previewCode,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF4CAF50),
-                            letterSpacing: 1.5,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFB08968).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.star,
+                              color: Color(0xFFB08968),
+                              size: 16,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${reward.point} pts',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFFB08968),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Your balance',
+                                style: TextStyle(fontSize: 14),
+                              ),
+                              Text(
+                                '${user.point} pts',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color:
+                                      user.point >= reward.point
+                                          ? Colors.green
+                                          : Colors.red,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'You will receive a unique code to pick up at our café.',
+                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Preview Code',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  previewCode,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF4CAF50),
+                                    letterSpacing: 1.2,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 3,
+                                ),
+                              ],
+                            ),
+                            child: IconButton(
+                              icon: const Icon(
+                                Icons.copy,
+                                size: 18,
+                                color: Colors.grey,
+                              ),
+                              onPressed: () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Code copied!')),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(context, null),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Colors.grey),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(24),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            child: const Text(
+                              'Cancel',
+                              style: TextStyle(fontSize: 14),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed:
+                                () => Navigator.pop(context, previewCode),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFB08968),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(24),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              elevation: 0,
+                            ),
+                            child: const Text(
+                              'Redeem',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, null),
-                child: const Text(
-                  "Cancel",
-                  style: TextStyle(color: Colors.grey),
-                ),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context, previewCode),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFB08968),
-                ),
-                child: const Text("Redeem Now"),
-              ),
-            ],
           ),
     );
 
@@ -1634,250 +1988,14 @@ class _AccountScreenState extends State<AccountScreen> {
     }
   }
 
-  Future<void> _showRedemptionSuccess(
-    RewardItem reward,
-    String code,
-    UserProvider userProvider,
-  ) async {
-    await showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder:
-          (context) => AlertDialog(
-            title: const Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.green),
-                SizedBox(width: 10),
-                Text("Redemption Successful!"),
-              ],
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  "🎉 Congratulations!",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  reward.name,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 20),
-                Container(
-                  padding: const EdgeInsets.all(15),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF5F5F5),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFB08968)),
-                  ),
-                  child: Column(
-                    children: [
-                      const Text(
-                        "Your Redemption Code:",
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        code,
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.green,
-                          letterSpacing: 2,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      const Text(
-                        "Save this code!",
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  "Bring this code to our café in Cambodia to claim your reward.",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 14),
-                ),
-              ],
-            ),
-            actions: [
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFB08968),
-                ),
-                child: const Text("View Pickup Details"),
-              ),
-            ],
-          ),
-    );
-  }
-
-  void _showErrorDialog(String message) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Row(
-              children: [
-                Icon(Icons.error, color: Colors.red),
-                SizedBox(width: 10),
-                Text("Redemption Failed"),
-              ],
-            ),
-            content: Text(message),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("OK"),
-              ),
-            ],
-          ),
-    );
-  }
-
-  void _showQRCodeDialog(RedemptionRecord redemption) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text("Redemption QR Code"),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // QR Code
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: QrImageView(
-                      data: redemption.redemptionCode,
-                      version: QrVersions.auto,
-                      size: 250.0,
-                      backgroundColor: Colors.white,
-                      errorCorrectionLevel: QrErrorCorrectLevel.H,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: Column(
-                      children: [
-                        const Text(
-                          "Redemption Code:",
-                          style: TextStyle(fontSize: 12, color: Colors.grey),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          redemption.redemptionCode,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF4CAF50),
-                            letterSpacing: 1,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          redemption.rewardName,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF2D2D2D),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          "Points: ${redemption.pointsUsed}",
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _getStatusColor(redemption).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(
-                              color: _getStatusColor(redemption),
-                            ),
-                          ),
-                          child: Text(
-                            redemption.status.toUpperCase(),
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: _getStatusColor(redemption),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("Close"),
-              ),
-            ],
-          ),
-    );
-  }
-
   ImageProvider? _getProfileImage(User user) {
     try {
-      if (_imageFile != null) {
-        // Verify file still exists before returning
-        if (_imageFile!.existsSync()) {
-          return FileImage(_imageFile!);
-        } else {
-          // File was deleted, clear it
-          _imageFile = null;
-        }
+      if (_profileImageBase64 != null && _profileImageBase64!.isNotEmpty) {
+        return MemoryImage(base64Decode(_profileImageBase64!));
       }
     } catch (e) {
-      print('Error getting file image: $e');
-      _imageFile = null;
+      print('Error decoding profile image: $e');
+      _profileImageBase64 = null;
     }
 
     if (user.profileImage.isNotEmpty && user.profileImage.startsWith('http')) {
@@ -1887,7 +2005,7 @@ class _AccountScreenState extends State<AccountScreen> {
   }
 
   bool _shouldShowDefaultIcon(User user) {
-    return _imageFile == null &&
+    return _profileImageBase64 == null &&
         (user.profileImage.isEmpty || !user.profileImage.startsWith('http'));
   }
 }

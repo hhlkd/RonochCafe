@@ -22,7 +22,6 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   bool _obscurePassword = true;
 
-  // Custom colors from Ronoch design
   final Color _mainBrown = const Color(0xFF9E8470);
   final Color _forgotPwdBlue = const Color(0xFF4A90E2);
   final String _mockApiUrl =
@@ -34,7 +33,6 @@ class _LoginScreenState extends State<LoginScreen> {
       resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
-          // 1. Full Background Image
           Container(
             width: double.infinity,
             height: double.infinity,
@@ -46,7 +44,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
 
-          // 2. Content Layer
           SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 30),
@@ -54,7 +51,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   const SizedBox(height: 290),
 
-                  // Title
                   Text(
                     'Login',
                     style: TextStyle(
@@ -66,7 +62,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const SizedBox(height: 30),
 
-                  // Phone or Email Input
                   _buildInputLabel('Phone or Email'),
                   _buildTextField(
                     _phoneEmailController,
@@ -74,16 +69,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
 
                   const SizedBox(height: 20),
-
-                  // Password Input
                   _buildInputLabel('Password'),
                   _buildTextField(
                     _passwordController,
                     'Enter Password',
                     isPassword: true,
                   ),
-
-                  // Forgot Password Link
                   Align(
                     alignment: Alignment.center,
                     child: TextButton(
@@ -103,8 +94,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
 
                   const SizedBox(height: 20),
-
-                  // Login Button
                   SizedBox(
                     width: double.infinity,
                     height: 55,
@@ -134,8 +123,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
 
                   const SizedBox(height: 25),
-
-                  // Register Redirection
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -172,8 +159,6 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
-
-  // --- UI Helpers ---
 
   Widget _buildInputLabel(String label) {
     return Container(
@@ -223,8 +208,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // --- Login Logic ---
-
   Future<void> _loginUser() async {
     final String input = _phoneEmailController.text.trim();
     final String password = _passwordController.text.trim();
@@ -240,8 +223,6 @@ class _LoginScreenState extends State<LoginScreen> {
       final response = await http.get(Uri.parse(_mockApiUrl));
       if (response.statusCode == 200) {
         final List<dynamic> users = jsonDecode(response.body);
-
-        // Find user by matching email/phone AND password
         Map<String, dynamic>? foundUser;
         for (var u in users) {
           bool matchesIdentifier =
@@ -256,15 +237,11 @@ class _LoginScreenState extends State<LoginScreen> {
         }
 
         if (foundUser != null) {
-          // Save session using your UserSession service
-          // Check for both 'name' and 'username' to prevent crashes
           await UserSession.saveUser(
             foundUser['id'].toString(),
             foundUser['name'] ?? foundUser['username'] ?? 'User',
             foundUser['email'] ?? '',
           );
-
-          // Set userId in OrderProvider
           if (mounted) {
             Provider.of<OrderProvider>(
               context,
@@ -274,7 +251,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
           _showSuccess('Welcome back to Ronoch Cafè!');
 
-          // Delay briefly so the success alert is visible
           Future.delayed(const Duration(milliseconds: 800), () {
             if (mounted) {
               Navigator.pushAndRemoveUntil(
@@ -296,8 +272,6 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) setState(() => _isLoading = false);
     }
   }
-
-  // --- Ronoch Custom Alerts ---
 
   void _showRonochAlert({
     required String title,

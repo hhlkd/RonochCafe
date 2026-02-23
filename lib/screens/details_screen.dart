@@ -14,7 +14,6 @@ class DetailsScreen extends StatefulWidget {
 }
 
 class _DetailsScreenState extends State<DetailsScreen> {
-  // Selection states
   String _selectedSize = 'M';
   String _selectedSugar = '0%';
   String _selectedIce = '0%';
@@ -65,7 +64,6 @@ class _DetailsScreenState extends State<DetailsScreen> {
     );
   }
 
-  // --- NEW IMPROVED HEADER ---
   Widget _buildTopHeader() {
     return Stack(
       clipBehavior: Clip.none,
@@ -142,7 +140,6 @@ class _DetailsScreenState extends State<DetailsScreen> {
     );
   }
 
-  // --- PRODUCT INFO (NAME, RATINGS, TIME) ---
   Widget _buildProductInfo() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(25, 30, 25, 10),
@@ -189,7 +186,6 @@ class _DetailsScreenState extends State<DetailsScreen> {
     );
   }
 
-  // --- DRINK CUSTOMIZATION LAYOUT ---
   Widget _buildDrinkCustomization() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 20),
@@ -210,7 +206,6 @@ class _DetailsScreenState extends State<DetailsScreen> {
     );
   }
 
-  // --- FOOD DESCRIPTION LAYOUT ---
   Widget _buildFoodDescription() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 20),
@@ -235,7 +230,6 @@ class _DetailsScreenState extends State<DetailsScreen> {
     );
   }
 
-  // --- SHARED UI LOGIC ---
   Widget _buildOptionRow(String type) {
     List<Map<String, String>> options = [];
     String currentSelection = '';

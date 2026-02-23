@@ -42,7 +42,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     super.dispose();
   }
 
-  // --- Logic: Verify and Update Password ---
   Future<void> _handleVerify() async {
     String enteredOtp = _controllers.map((e) => e.text).join();
 

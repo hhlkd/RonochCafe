@@ -31,6 +31,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   final RegExp _phoneRegex = RegExp(r'^[0-9]{9,10}$');
 
+  final RegExp _passwordRegex = RegExp(
+    r'^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$',
+  );
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -71,6 +75,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       controller: _usernameController,
                       style: TextStyle(color: _labelColor),
                       decoration: _inputDecoration('Enter Username'),
+                      autovalidateMode: AutovalidateMode.onUserInteraction,
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
                           return 'Username is required';
@@ -86,20 +91,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       style: TextStyle(color: _labelColor),
                       keyboardType: TextInputType.text,
                       decoration: _inputDecoration('Enter Phone or Email'),
+                      autovalidateMode: AutovalidateMode.onUserInteraction,
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
                           return 'Phone or email is required';
                         }
                         final trimmed = value.trim();
                         if (trimmed.contains('@')) {
-                          // Validate as email
                           if (!_emailRegex.hasMatch(trimmed)) {
-                            return 'Enter a valid email address';
+                            return 'Enter a valid email or phone number';
                           }
                         } else {
-                          // Validate as phone
                           if (!_phoneRegex.hasMatch(trimmed)) {
-                            return 'Enter a valid phone number (9-10 digits)';
+                            return 'Enter a valid email or phone number';
                           }
                         }
                         return null;
@@ -129,12 +133,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               ),
                         ),
                       ),
+                      autovalidateMode: AutovalidateMode.onUserInteraction,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Password is required';
                         }
-                        if (value.length < 6) {
-                          return 'Password must be at least 6 characters';
+                        if (!_passwordRegex.hasMatch(value)) {
+                          return 'Password must be at least 6 characters and contain at least one letter and one number';
                         }
                         return null;
                       },
@@ -175,7 +180,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     const SizedBox(height: 20),
 
-                    // Login link
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -248,8 +252,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       errorStyle: const TextStyle(color: Colors.red, fontSize: 12),
     );
   }
-
-  // ================ LOGIC METHODS ================
 
   Future<void> _registerUser() async {
     if (!_formKey.currentState!.validate()) return;

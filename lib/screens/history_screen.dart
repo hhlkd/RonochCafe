@@ -496,7 +496,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                     imageUrl: item.imageUrl!,
                                     width: 50,
                                     height: 50,
-                                    fit: BoxFit.cover,
+                                    fit: BoxFit.contain,
                                     placeholder:
                                         (context, url) => Container(
                                           color: Colors.grey.shade200,
@@ -865,6 +865,47 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ),
       child: Row(
         children: [
+          Container(
+            width: 50,
+            height: 50,
+            margin: const EdgeInsets.only(right: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              color: Colors.grey.shade100,
+            ),
+            child:
+                item.imageUrl != null && item.imageUrl!.isNotEmpty
+                    ? ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: CachedNetworkImage(
+                        imageUrl: item.imageUrl!,
+                        width: 50,
+                        height: 50,
+                        fit: BoxFit.contain,
+                        placeholder:
+                            (context, url) => Container(
+                              color: Colors.grey.shade200,
+                              child: const Center(
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            ),
+                        errorWidget:
+                            (context, url, error) => Container(
+                              color: Colors.grey.shade200,
+                              child: const Icon(
+                                Icons.image,
+                                color: Colors.grey,
+                              ),
+                            ),
+                      ),
+                    )
+                    : Container(
+                      color: Colors.grey.shade200,
+                      child: const Icon(Icons.image, color: Colors.grey),
+                    ),
+          ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

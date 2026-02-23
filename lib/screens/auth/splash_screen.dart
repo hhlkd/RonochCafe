@@ -298,7 +298,6 @@ class _SplashScreenState extends State<SplashScreen>
                               ),
                               child: Stack(
                                 children: [
-                                  // Animated progress bar
                                   LayoutBuilder(
                                     builder: (context, constraints) {
                                       double progress =

@@ -650,13 +650,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       if (currentUserId == null || currentUserId.isEmpty) {
         throw Exception("User not logged in. Please login again.");
       }
-      // ignore: avoid_print
       print('👤 Current logged-in user ID: $currentUserId');
       final userDetails = await MockApiService.getUserById(currentUserId);
       if (userDetails == null) {
         throw Exception("User not found in database. Please login again.");
       }
-      // ignore: avoid_print
       print('✅ User verified: ${userDetails.username} (ID: ${userDetails.id})');
       final orderItems =
           cart.items.map((item) {
@@ -670,7 +668,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               'size': item.size,
               'sugarLevel': item.sugarLevel,
               'iceLevel': item.iceLevel,
-              'points': item.quantity * 2, // 2 points per item
+              'points': item.quantity * 2,
             };
           }).toList();
       final orderData = {

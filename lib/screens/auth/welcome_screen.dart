@@ -24,13 +24,11 @@ class WelcomeScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              // Welcome text section
               Container(
                 width: double.infinity,
                 padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.08),
                 child: Column(
                   children: [
-                    // Main welcome text
                     const Text(
                       'Welcome to',
                       textAlign: TextAlign.center,
@@ -54,8 +52,6 @@ class WelcomeScreen extends StatelessWidget {
                     ),
 
                     SizedBox(height: screenHeight * 0.02),
-
-                    // Description text
                     Container(
                       padding: EdgeInsets.symmetric(
                         horizontal: screenWidth * 0.05,
@@ -76,8 +72,6 @@ class WelcomeScreen extends StatelessWidget {
               ),
 
               SizedBox(height: screenHeight * 0.05),
-
-              // Buttons section with semi-transparent background
               Container(
                 width: double.infinity,
                 padding: EdgeInsets.symmetric(
@@ -87,7 +81,6 @@ class WelcomeScreen extends StatelessWidget {
 
                 child: Column(
                   children: [
-                    // Register Button
                     SizedBox(
                       width: double.infinity,
                       height: screenHeight * 0.065,
@@ -118,8 +111,6 @@ class WelcomeScreen extends StatelessWidget {
                     ),
 
                     SizedBox(height: screenHeight * 0.02),
-
-                    // Login Button
                     SizedBox(
                       width: double.infinity,
                       height: screenHeight * 0.065,

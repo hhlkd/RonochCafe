@@ -132,7 +132,6 @@ class OrderProvider with ChangeNotifier {
     }
   }
 
-  /// Process and deduplicate orders
   List<Order> _processOrders(List<Order> orders) {
     if (orders.isEmpty) return [];
 
@@ -140,17 +139,14 @@ class OrderProvider with ChangeNotifier {
     final seenOrderIds = <String>{};
 
     for (var order in orders) {
-      // Filter out orders that don't belong to current user
       if (order.userId != _userId) {
         continue;
       }
 
-      // Skip duplicates
       if (seenOrderIds.contains(order.id)) {
         continue;
       }
 
-      // Validate order has required fields
       if (order.id.isEmpty || order.items.isEmpty) {
         continue;
       }
@@ -162,13 +158,11 @@ class OrderProvider with ChangeNotifier {
     return uniqueOrders;
   }
 
-  /// Create a new order from cart items
   Future<Order> createOrderFromCart({
     required Cart cart,
     required String deliveryAddress,
     required String paymentMethod,
   }) async {
-    // Validate user
     if (_userId == null) {
       await _refreshUserSession();
       if (_userId == null) {
@@ -176,7 +170,6 @@ class OrderProvider with ChangeNotifier {
       }
     }
 
-    // Validate cart
     if (cart.items.isEmpty) {
       throw Exception('Cart is empty');
     }

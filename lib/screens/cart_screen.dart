@@ -72,7 +72,6 @@ class CartScreen extends StatelessWidget {
                           ),
                           child: Row(
                             children: [
-                              // Product Image
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(15),
                                 child:
@@ -186,7 +185,6 @@ class CartScreen extends StatelessWidget {
                                   ],
                                 ),
                               ),
-                              // Quantity Buttons
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
@@ -244,7 +242,6 @@ class CartScreen extends StatelessWidget {
                       },
                     ),
           ),
-          // Total Section
           if (cart.items.isNotEmpty) _buildBottomSection(context, cart),
         ],
       ),

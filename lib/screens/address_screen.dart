@@ -321,61 +321,86 @@ class _AddressScreenState extends State<AddressScreen> {
             ),
             const SizedBox(height: 20),
 
-            // Location Picker Card
             GestureDetector(
               onTap: _pickLocation,
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(20),
+                height: 180,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
                   borderRadius: BorderRadius.circular(15),
                   border: Border.all(color: Colors.grey.shade300),
                 ),
-                child: Column(
+                child: Stack(
+                  fit: StackFit.expand,
                   children: [
-                    if (_isLoading)
-                      const CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          Color(0xFFA68A73),
-                        ),
-                      )
-                    else
-                      Icon(
-                        Icons.location_on,
-                        size: 50,
-                        color:
-                            _latLong == "No location selected"
-                                ? Colors.grey
-                                : const Color(0xFFA68A73),
-                      ),
-                    const SizedBox(height: 10),
-                    Text(
-                      _latLong == "No location selected"
-                          ? "Tap to select location"
-                          : "Location Selected",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color:
-                            _latLong == "No location selected"
-                                ? Colors.grey
-                                : const Color(0xFFA68A73),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(15),
+                      child: Image.asset(
+                        'assets/images/location.png',
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: Colors.grey.shade200,
+                            child: Center(
+                              child: Icon(
+                                Icons.map,
+                                size: 50,
+                                color: Colors.grey.shade400,
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ),
-                    if (_latLong != "No location selected") ...[
-                      const SizedBox(height: 10),
-                      const Icon(
-                        Icons.check_circle,
-                        color: Colors.green,
-                        size: 24,
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(15),
+                        color: Colors.black.withOpacity(0.3),
                       ),
-                    ],
+                    ),
+                    Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (_isLoading)
+                            const CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Color(0xFFA68A73),
+                              ),
+                            )
+                          else if (_latLong != "No location selected")
+                            const Icon(
+                              Icons.check_circle,
+                              color: Colors.green,
+                              size: 40,
+                            )
+                          else
+                            const Icon(
+                              Icons.location_on,
+                              size: 40,
+                              color: Colors.white,
+                            ),
+                          const SizedBox(height: 8),
+                          Text(
+                            _latLong == "No location selected"
+                                ? "Tap to select location"
+                                : "Location Selected",
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
 
             const SizedBox(height: 20),
+
             if (_selectedAddress != null) ...[
               Container(
                 width: double.infinity,
@@ -417,7 +442,6 @@ class _AddressScreenState extends State<AddressScreen> {
               const SizedBox(height: 20),
             ],
 
-            // Address Field
             _buildField(
               "Full Address",
               _addressController,
@@ -428,7 +452,6 @@ class _AddressScreenState extends State<AddressScreen> {
 
             const SizedBox(height: 20),
 
-            // Phone Field
             _buildField(
               "Phone Number",
               _phoneController,
@@ -439,7 +462,6 @@ class _AddressScreenState extends State<AddressScreen> {
 
             const SizedBox(height: 20),
 
-            // Instructions Field
             _buildField(
               "Delivery Instructions",
               _remarkController,
@@ -450,7 +472,6 @@ class _AddressScreenState extends State<AddressScreen> {
 
             const SizedBox(height: 30),
 
-            // Save Button
             SizedBox(
               width: double.infinity,
               height: 55,

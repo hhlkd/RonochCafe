@@ -144,7 +144,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
             const SizedBox(height: 20),
 
-            // 3. Service Icons (Pick Up & Delivery circular style)
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
@@ -157,7 +156,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
             const SizedBox(height: 25),
 
-            // 4. Announcements Section Header
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 20),
               child: Text(
@@ -172,7 +170,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
             const SizedBox(height: 10),
 
-            // Vertical list of announcements as per your UI design
             if (_announcements.isNotEmpty)
               ListView.builder(
                 shrinkWrap: true,
@@ -205,8 +202,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
 
             const SizedBox(height: 20),
-
-            // Footer Banner matching your design
             Container(
               margin: const EdgeInsets.all(20),
               padding: const EdgeInsets.all(25),
@@ -245,7 +240,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 20),
                   ElevatedButton(
                     onPressed: () {
-                      // Navigate to order screen
                       setState(() {
                         _selectedIndex = 1;
                       });
@@ -281,14 +275,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Build all screens for IndexedStack
   List<Widget> _buildAllScreens() {
     return [
       _buildHomeContent(),
-      const MenuScreen(), // Index 1: Menu
-      const HistoryScreen(), // Index 2: Order/Cart
-      const AccountScreen(), // Index 3: Profile
-      // call other screens here
+      const MenuScreen(),
+      const HistoryScreen(),
+      const AccountScreen(),
     ];
   }
 
@@ -297,12 +289,13 @@ class _HomeScreenState extends State<HomeScreen> {
       onTap: () {
         print('$label tapped');
         if (label == 'Pick Up') {
-          //go to pick up menu screen
           setState(() {
             _selectedIndex = 1;
           });
         } else {
-          // Handle delivery
+          setState(() {
+            _selectedIndex = 1;
+          });
         }
       },
       child: Column(
@@ -311,7 +304,7 @@ class _HomeScreenState extends State<HomeScreen> {
             width: 90,
             height: 90,
             decoration: BoxDecoration(
-              color: const Color(0xFFFFE4D6), // Light peach background from UI
+              color: const Color(0xFFFFE4D6),
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
@@ -372,7 +365,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       child: Column(
         children: [
-          // Image with discount badge
           Stack(
             children: [
               ClipRRect(
@@ -420,7 +412,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                 ),
               ),
-              // Discount badge
               Positioned(
                 top: 10,
                 left: 10,
@@ -445,7 +436,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-          // Content
           Padding(
             padding: const EdgeInsets.all(15),
             child: Column(
@@ -467,7 +457,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 12),
-                // Valid until date
                 Row(
                   children: [
                     const Icon(
